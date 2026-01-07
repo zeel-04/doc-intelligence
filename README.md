@@ -13,5 +13,5 @@ Prerequisites:
 git clone https://github.com/zeel-04/Document-AI.git
 cd Document-AI
 uv venv
-uv sync
+uv sync 
 ```
