@@ -39,3 +39,7 @@ class PDFDocument(Document):
     document_type: Literal["pdf"] = "pdf"
     content: PDF | None = None
     llm_input: list[str] | str | None = None
+
+class Mode(BaseModel):
+    paginated: bool
+    include_line_numbers: bool

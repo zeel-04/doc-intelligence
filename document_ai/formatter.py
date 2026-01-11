@@ -1,7 +1,5 @@
-from pydantic import BaseModel
-
 from .base import BaseFormatter
-from .schemas import PydanticModel
+from .schemas import Mode, PydanticModel
 
 
 class PDFFormatter(BaseFormatter):
@@ -39,25 +37,22 @@ class PDFFormatter(BaseFormatter):
         complete = "\n".join(self._format_paginated_without_line_numbers(content))
         return complete
 
-    def format_for_llm(
-        self, content: PydanticModel, formatter_config: dict
-    ) -> list[str] | str:
-        flag = formatter_config.get("flag")
-        if flag == "paginated_with_line_numbers":
+    def format_for_llm(self, content: PydanticModel, mode: Mode) -> list[str] | str:
+        if mode.paginated and mode.include_line_numbers:
             paginated = self._format_paginated(content)
             return paginated
-        elif flag == "complete_with_line_numbers":
+        elif not mode.paginated and mode.include_line_numbers:
             complete = self._format_complete(content)
             return complete
-        elif flag == "paginated_without_line_numbers":
+        elif mode.paginated and not mode.include_line_numbers:
             paginated_without_line_numbers = (
                 self._format_paginated_without_line_numbers(content)
             )
             return paginated_without_line_numbers
-        elif flag == "complete_without_line_numbers":
+        elif not mode.paginated and not mode.include_line_numbers:
             complete_without_line_numbers = self._format_complete_without_line_numbers(
                 content
             )
             return complete_without_line_numbers
         else:
-            raise ValueError(f"PDFFormatter: format_for_llm: Invalid flag: {flag}")
+            raise ValueError(f"PDFFormatter: format_for_llm: Invalid mode: {mode}")
