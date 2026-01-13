@@ -13,13 +13,20 @@ class BaseParser(ABC):
 
 class BaseFormatter(ABC):
     @abstractmethod
-    def format_for_llm(self, content: PydanticModel, mode: Mode) -> list[str] | str:
+    def format_document_for_llm(self, document: Document, mode: Mode) -> list[str]:
         pass
 
 
 class BaseExtractor(ABC):
-    def __init__(self, llm: BaseLLM):
+    def __init__(
+        self,
+        llm: BaseLLM,
+        system_prompt: str | None = None,
+        user_prompt: str | None = None,
+    ):
         self.llm = llm
+        self.system_prompt = system_prompt
+        self.user_prompt = user_prompt
 
     @abstractmethod
     def extract(
@@ -28,11 +35,12 @@ class BaseExtractor(ABC):
         model: str,
         reasoning: Any,
         response_format: PydanticModel,
-        system_prompt: str,
-        user_prompt: str,
         mode: Mode,
+        llm_input: str,
+        system_prompt: str | None = None,
+        user_prompt: str | None = None,
         openai_text: dict[str, Any] | None = None,
-    ) -> Any:
+    ) -> PydanticModel:
         pass
 
 
@@ -43,7 +51,7 @@ class DocumentProcessor:
         formatter: BaseFormatter,
         extractor: BaseExtractor,
         document: Document,
-        mode: Mode,
+        mode: Mode = Mode(),
     ):
         self.parser = parser
         self.formatter = formatter
@@ -55,11 +63,11 @@ class DocumentProcessor:
         self.document.content = self.parser.parse(self.document)
         return self.document
 
-    def formatted_input_for_llm(self) -> list[str] | str:
+    def format_document_for_llm(self) -> list[str]:
         if not self.document.content:
             raise ValueError("Please parse the document first")
-        self.document.llm_input = self.formatter.format_for_llm(
-            self.document.content,  # type: ignore
+        self.document.llm_input = self.formatter.format_document_for_llm(
+            self.document,
             self.mode,
         )
         return self.document.llm_input
@@ -69,8 +77,9 @@ class DocumentProcessor:
         model: str,
         reasoning: Any,
         response_format: PydanticModel,
-        system_prompt: str,
-        user_prompt: str,
+        llm_input: str,
+        system_prompt: str | None = None,
+        user_prompt: str | None = None,
         openai_text: dict[str, Any] | None = None,
     ) -> Any:
         if not self.document.content and not self.document.llm_input:
@@ -83,5 +92,6 @@ class DocumentProcessor:
             system_prompt=system_prompt,
             user_prompt=user_prompt,
             mode=self.mode,
+            llm_input=llm_input,
             openai_text=openai_text,
         )
