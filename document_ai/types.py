@@ -1,3 +1,7 @@
-from typing import Any
+from document_ai.schemas import Citation, CitationWithBboxes
 
-Citation = Any
+# -------------------------------------
+# Citation types for PDF
+# -------------------------------------
+CitationType = list[Citation]
+CitationWithBboxesType = list[CitationWithBboxes]
