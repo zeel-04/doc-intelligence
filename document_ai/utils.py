@@ -2,7 +2,7 @@ from typing import Any, Type, get_args, get_origin
 
 from pydantic import BaseModel, Field, create_model
 
-from document_ai.schemas import BoundingBox, PydanticModel
+from document_ai.schemas import PDF, BoundingBox, PydanticModel
 
 CITATION_DESCRIPTION = """This is used to cite the page number and line number where the information is mentioned in the document.
 For example:
@@ -29,6 +29,82 @@ def denormalize_bounding_box(
         x1=bounding_box.x1 * page_width,
         bottom=bounding_box.bottom * page_height,
     )
+
+
+def enrich_citations_with_bboxes(
+    response: PydanticModel, parsed_pdf: PDF
+) -> dict[str, Any]:
+    """
+    Enriches citation fields in the response with bounding boxes from the parsed PDF.
+
+    This function traverses the response dictionary recursively to find all citation
+    dictionaries (identified by having both 'page' and 'lines' keys), then adds
+    bounding box information from the corresponding lines in the parsed PDF.
+
+    Args:
+        response: The Pydantic model response from LLM extraction
+        parsed_pdf: The parsed PDF document containing pages and line bounding boxes
+
+    Returns:
+        A dictionary with bboxes added to all citation fields. Each citation will
+        have a 'bboxes' key containing a list of normalized BoundingBox dicts.
+
+    Note:
+        - The Citation schema is NOT modified - bboxes are only added in the returned
+          dict, keeping the LLM-facing schema clean
+        - Bounding boxes are normalized (0-1 scale)
+        - Handles out-of-bounds page/line indices gracefully by skipping them
+    """
+
+    def _is_citation_dict(obj: Any) -> bool:
+        """Check if an object is a citation dictionary."""
+        return (
+            isinstance(obj, dict)
+            and "page" in obj
+            and "lines" in obj
+            and isinstance(obj.get("page"), int)
+            and isinstance(obj.get("lines"), list)
+        )
+
+    def _enrich_citation(citation: dict[str, Any]) -> dict[str, Any]:
+        """Add bboxes to a single citation dictionary."""
+        page_idx = citation["page"]
+        line_indices = citation["lines"]
+
+        # Bounds check for page
+        if page_idx < 0 or page_idx >= len(parsed_pdf.pages):
+            # Page index out of bounds, return citation as-is
+            return citation
+
+        page = parsed_pdf.pages[page_idx]
+        bboxes = []
+
+        for line_idx in line_indices:
+            # Bounds check for line
+            if line_idx >= 0 and line_idx < len(page.lines):
+                bbox = page.lines[line_idx].bounding_box
+                # Convert BoundingBox to dict
+                bboxes.append(bbox.model_dump())
+
+        # Create enriched citation with bboxes
+        enriched = citation.copy()
+        enriched["bboxes"] = bboxes
+        return enriched
+
+    def _traverse_and_enrich(obj: Any) -> Any:
+        """Recursively traverse and enrich citation dictionaries."""
+        if _is_citation_dict(obj):
+            return _enrich_citation(obj)
+        elif isinstance(obj, dict):
+            return {key: _traverse_and_enrich(value) for key, value in obj.items()}
+        elif isinstance(obj, list):
+            return [_traverse_and_enrich(item) for item in obj]
+        else:
+            return obj
+
+    # Convert response to dict and enrich
+    response_dict = response.model_dump()
+    return _traverse_and_enrich(response_dict)
 
 
 def add_appropriate_citation_type(

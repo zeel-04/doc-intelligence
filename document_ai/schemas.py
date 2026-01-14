@@ -1,7 +1,6 @@
 from typing import Any, Literal, TypeVar
 
 from pydantic import BaseModel, Field
-from typing_extensions import TypedDict
 
 PydanticModel = TypeVar("PydanticModel", bound=BaseModel)
 
@@ -14,13 +13,6 @@ class BoundingBox(BaseModel):
     top: float
     x1: float
     bottom: float
-
-
-class Citation(TypedDict):
-    """Citation dict for page and line number references."""
-
-    page: int
-    lines: list[int]
 
 
 class Mode(BaseModel):

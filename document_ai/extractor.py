@@ -1,9 +1,12 @@
 from typing import Any
 
+from pydantic import BaseModel
+from typing_extensions import TypedDict
+
 from .base import BaseExtractor
 from .llm import BaseLLM
 from .schemas import Document, Mode, PydanticModel
-from .utils import add_appropriate_citation_type
+from .utils import add_appropriate_citation_type, enrich_citations_with_bboxes
 
 
 class PDFExtractor(BaseExtractor):
@@ -48,7 +51,12 @@ Document:
         ]
         # Modify the response format to add mode based citations
         if mode.include_line_numbers:
-            from .schemas import Citation
+
+            class Citation(TypedDict):
+                """Citation dict for page and line number references."""
+
+                page: int
+                lines: list[int]
 
             CitationType = list[Citation]
             response_format = add_appropriate_citation_type(
@@ -57,10 +65,30 @@ Document:
             print(response_format.model_json_schema())
         # else:
         #     response_format = set_page_citations(response_format, "Citations")
-        return self.llm.generate_structured_output(
+        response = self.llm.generate_structured_output(
             model=model,
             messages=messages,  # type:ignore[arg-type]
             reasoning=reasoning,
             output_format=response_format,
             openai_text=openai_text,
         )
+
+        # enrich the response with bboxes
+        if mode.include_line_numbers:
+            response_with_bboxes = enrich_citations_with_bboxes(
+                response,
+                document.content,  # type: ignore
+            )
+
+            class Citation(BaseModel):
+                page: int
+                lines: list[int]
+                bboxes: list[dict[str, Any]]
+
+            CitationType = list[Citation]
+            final_cited_response_model = add_appropriate_citation_type(
+                response_format, 
+                CitationType, 
+            ) 
+            return final_cited_response_model(**response_with_bboxes)  # ty:ignore[call-non-callable]
+        return response

@@ -9,6 +9,7 @@ dependencies = [
     "loguru>=0.7.3",
     "openai>=2.15.0",
     "pdfplumber>=0.11.9",
+    "pymupdf>=1.26.7",
     "python-dotenv>=1.2.1",
 ]
 
