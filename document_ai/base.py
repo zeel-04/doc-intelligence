@@ -1,7 +1,6 @@
 from abc import ABC, abstractmethod
 from typing import Any
 
-from .llm import BaseLLM
 from .schemas import Document, Mode, PydanticModel
 
 
@@ -16,6 +15,18 @@ class BaseFormatter(ABC):
     def format_document_for_llm(self, document: Document, mode: Mode) -> str:
         pass
 
+
+class BaseLLM(ABC):
+    @abstractmethod
+    def generate_structured_output(
+        self,
+        model: str,
+        messages: list[dict[str, str]],
+        reasoning: Any,
+        output_format: PydanticModel,
+        openai_text: dict[str, Any] | None = None,
+    ) -> PydanticModel:
+        pass
 
 class BaseExtractor(ABC):
     def __init__(

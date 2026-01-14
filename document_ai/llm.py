@@ -1,23 +1,10 @@
-from abc import ABC, abstractmethod
 from typing import Any
 
 from openai import OpenAI
 from tenacity import retry, stop_after_attempt
 
+from .base import BaseLLM
 from .schemas import PydanticModel
-
-
-class BaseLLM(ABC):
-    @abstractmethod
-    def generate_structured_output(
-        self,
-        model: str,
-        messages: list[dict[str, str]],
-        reasoning: Any,
-        output_format: PydanticModel,
-        openai_text: dict[str, Any] | None = None,
-    ) -> PydanticModel:
-        pass
 
 
 class OpenAILLM(BaseLLM):
