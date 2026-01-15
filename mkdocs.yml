@@ -7,6 +7,11 @@ repo_name: document_ai
 repo_url: https://github.com/zeel-04/Document-AI
 edit_uri: edit/main/docs/
 
+# Navigation
+nav:
+  - Home: index.md
+  - Quick Start: quickstart.md
+
 theme:
   name: material
   palette:
