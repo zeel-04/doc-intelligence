@@ -1,6 +1,6 @@
 # Quickstart
 
-This guide will help you get started with document_ai in minutes.
+This guide will help you get started with Document AI.
 
 ## Installation
 
@@ -23,8 +23,8 @@ Clone the repository and install the package:
 
 ```bash
 # Clone the repository
-git clone https://github.com/yourusername/document_ai.git
-cd document_ai
+git clone https://github.com/zeel-04/document-ai.git
+cd document-ai
 
 # Install the package with uv
 uv sync
@@ -35,12 +35,12 @@ uv sync
 You can also install directly from the git repository:
 
 ```bash
-uv pip install git+https://github.com/yourusername/document_ai.git
+uv pip install git+https://github.com/zeel-04/document-ai.git
 ```
 
 ## Environment Setup
 
-document_ai uses OpenAI's API for document processing. Set up your API key:
+Document AI uses OpenAI's API for document processing. Set up your API key:
 
 ```bash
 # Create a .env file
