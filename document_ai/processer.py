@@ -60,7 +60,7 @@ class DocumentProcessor:
         self,
         model: str,
         reasoning: Any,
-        response_format: PydanticModel,
+        response_format: type[PydanticModel],
         system_prompt: str | None = None,
         user_prompt: str | None = None,
         openai_text: dict[str, Any] | None = None,

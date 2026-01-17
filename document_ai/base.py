@@ -12,7 +12,9 @@ class BaseParser(ABC):
 
 class BaseFormatter(ABC):
     @abstractmethod
-    def format_document_for_llm(self, document: Document, include_line_numbers: bool) -> str:
+    def format_document_for_llm(
+        self, document: Document, include_line_numbers: bool
+    ) -> str:
         pass
 
 
@@ -23,21 +25,20 @@ class BaseLLM(ABC):
         model: str,
         messages: list[dict[str, str]],
         reasoning: Any,
-        output_format: PydanticModel,
+        output_format: type[PydanticModel],
         openai_text: dict[str, Any] | None = None,
-    ) -> PydanticModel:
+    ) -> PydanticModel | None:
         pass
+
 
 class BaseExtractor(ABC):
     def __init__(
         self,
         llm: BaseLLM,
-        system_prompt: str | None = None,
-        user_prompt: str | None = None,
     ):
         self.llm = llm
-        self.system_prompt = system_prompt
-        self.user_prompt = user_prompt
+        self.system_prompt = ""
+        self.user_prompt = ""
 
     @abstractmethod
     def extract(
@@ -45,11 +46,11 @@ class BaseExtractor(ABC):
         document: Document,
         model: str,
         reasoning: Any,
-        response_format: PydanticModel,
+        response_format: type[PydanticModel],
         include_line_numbers: bool,
         llm_input: str,
-        system_prompt: str | None = None,
         user_prompt: str | None = None,
+        system_prompt: str | None = None,
         openai_text: dict[str, Any] | None = None,
     ) -> PydanticModel:
         pass

@@ -3,7 +3,7 @@ from .schemas import Document, PydanticModel
 
 
 class DigitalPDFFormatter(BaseFormatter):
-    def _format_with_line_numbers(self, content: PydanticModel) -> list[str]:
+    def _format_with_line_numbers(self, content: type[PydanticModel]) -> list[str]:
         paginated = []
         if not content.pages:  # type: ignore
             raise ValueError("PDFFormatter: format_for_llm: Document pages are not set")
@@ -15,7 +15,7 @@ class DigitalPDFFormatter(BaseFormatter):
             paginated.append(f"<page number={page_number}>\n{lines_text}</page>")
         return paginated
 
-    def _format_without_line_numbers(self, content: PydanticModel) -> list[str]:
+    def _format_without_line_numbers(self, content: type[PydanticModel]) -> list[str]:
         paginated = []
         if not content.pages:  # type: ignore
             raise ValueError("PDFFormatter: format_for_llm: Document pages are not set")
@@ -27,7 +27,9 @@ class DigitalPDFFormatter(BaseFormatter):
             paginated.append(f"<page number={page_number}>\n{lines_text}</page>")
         return paginated
 
-    def format_document_for_llm(self, document: Document, include_line_numbers: bool) -> str:
+    def format_document_for_llm(
+        self, document: Document, include_line_numbers: bool
+    ) -> str:
         content = document.content
         if include_line_numbers:
             return "\n\n".join(self._format_with_line_numbers(content))  # type: ignore

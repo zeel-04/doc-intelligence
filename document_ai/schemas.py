@@ -15,6 +15,7 @@ class BoundingBox(BaseModel):
     x1: float
     bottom: float
 
+
 # -------------------------------------
 # Citation schemas for PDF
 # -------------------------------------
@@ -22,10 +23,12 @@ class Citation(TypedDict):
     page: int
     lines: list[int]
 
+
 class CitationWithBboxes(BaseModel):
     page: int
     lines: list[int]
     bboxes: list[dict[str, Any]]
+
 
 class Mode(BaseModel):
     include_line_numbers: bool = Field(default=True)
@@ -37,7 +40,7 @@ class Mode(BaseModel):
 class Document(BaseModel):
     document_type: str
     uri: str
-    content: PydanticModel | None = None
+    content: type[PydanticModel] | None = None
     llm_input: Any | None = None
 
 
@@ -60,6 +63,6 @@ class PDF(BaseModel):
 
 
 class PDFDocument(Document):
-    document_type: Literal["pdf"] = "pdf"
+    document_type: str = "pdf"
     content: PDF | None = None
     llm_input: str | None = None

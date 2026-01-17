@@ -17,14 +17,14 @@ class OpenAILLM(BaseLLM):
         model: str,
         messages: list[dict[str, str]],
         reasoning: Any,
-        output_format: PydanticModel,
+        output_format: type[PydanticModel],
         openai_text: dict[str, Any] | None = None,
-    ) -> PydanticModel:
+    ) -> PydanticModel | None:
         response = self.client.responses.parse(
             model=model,
             input=messages,  # type:ignore[arg-type]
             reasoning=reasoning,
             text=openai_text if openai_text else None,  # type:ignore[arg-type]
-            text_format=output_format,  # type:ignore[arg-type]
+            text_format=output_format,
         ).output_parsed
-        return response  # ty:ignore[invalid-return-type]
+        return response

@@ -32,7 +32,7 @@ def denormalize_bounding_box(
 
 
 def enrich_citations_with_bboxes(
-    response: PydanticModel, parsed_pdf: PDF
+    response: type[PydanticModel], parsed_pdf: PDF
 ) -> dict[str, Any]:
     """
     Enriches citation fields in the response with bounding boxes from the parsed PDF.
@@ -103,12 +103,12 @@ def enrich_citations_with_bboxes(
             return obj
 
     # Convert response to dict and enrich
-    response_dict = response.model_dump()
+    response_dict = response.model_dump()  # type:ignore
     return _traverse_and_enrich(response_dict)
 
 
 def add_appropriate_citation_type(
-    original_model: PydanticModel, CitationType: Type[Any]
+    original_model: type[PydanticModel], CitationType: Type[Any]
 ) -> PydanticModel:
     """
     Creates a new Pydantic model where existing citation fields are updated
@@ -157,7 +157,7 @@ def add_appropriate_citation_type(
             if isinstance(inner_type, type) and issubclass(inner_type, BaseModel):
                 new_inner_type = add_appropriate_citation_type(inner_type, CitationType)
                 new_fields[field_name] = (
-                    list[new_inner_type], 
+                    list[new_inner_type],
                     Field(default_factory=list, description=original_description),
                 )
             else:
@@ -203,47 +203,10 @@ def add_appropriate_citation_type(
                 )
 
     # Create new model with the same name as original
-    new_model = create_model(original_model.__name__, **new_fields)  # type: ignore
+    new_model = create_model(original_model.__name__, **new_fields)
 
     # Preserve the original model's docstring
     if original_model.__doc__:
         new_model.__doc__ = original_model.__doc__
 
     return new_model
-
-
-# def transform_model(
-#     model: Any,
-#     *,
-#     add: dict[str, tuple[type, object]] | None = None,  # {"f": (type, default or ...)}
-#     drop: set[str] | None = None,
-#     retype: dict[str, type] | None = None,
-#     name: str | None = None,
-# ):
-#     add = add or {}
-#     drop = drop or set()
-#     retype = retype or {}
-
-#     new_fields: dict[str, tuple[type, object]] = {}
-
-#     for fname, finfo in model.model_fields.items():  # pydantic v2
-#         if fname in drop:
-#             continue
-#         ann = retype.get(fname, finfo.annotation)
-#         default = ... if finfo.is_required() else finfo.default
-#         new_fields[fname] = (ann, default)
-
-#     # add new fields
-#     for fname, (ann, default) in add.items():
-#         new_fields[fname] = (ann, default)
-
-#     return create_model(name or f"{model.__name__}Transformed", **new_fields)  # type: ignore
-
-
-# # Example: drop zipcode, add country
-# Address2 = transform_model(
-#     Address, drop={"zipcode"}, add={"country": (str, "US")}, name="Address2"
-# )
-
-# # Rebuild employee to use new Address
-# Employee2 = transform_model(Employee, retype={"address": Address2}, name="Employee2")
