@@ -1,5 +1,7 @@
 from typing import Any
 
+from loguru import logger
+
 from document_ai.base import (
     BaseExtractor,
     BaseFormatter,
@@ -45,15 +47,18 @@ class DocumentProcessor:
 
     def parse(self) -> Document:
         self.document.content = self.parser.parse(self.document)
+        logger.info("Document parsed successfully")
         return self.document
 
-    def format_document_for_llm(self) -> str:
+    def format_document_for_llm(self, page_numbers: list[int] | None = None) -> str:
         if not self.document.content:
             raise ValueError("Please parse the document first")
         self.document.llm_input = self.formatter.format_document_for_llm(
             self.document,
             self.include_line_numbers,
+            page_numbers=page_numbers,
         )
+        logger.info("Document formatted successfully")
         return self.document.llm_input
 
     def extract(
@@ -64,12 +69,13 @@ class DocumentProcessor:
         system_prompt: str | None = None,
         user_prompt: str | None = None,
         openai_text: dict[str, Any] | None = None,
+        page_numbers: list[int] | None = None,
     ) -> Any:
         # Auto-parse and format if not done
         if not self.document.content:
             self.parse()
         if not self.document.llm_input:
-            self.format_document_for_llm()
+            self.format_document_for_llm(page_numbers=page_numbers)
 
         return self.extractor.extract(
             document=self.document,

@@ -13,7 +13,10 @@ class BaseParser(ABC):
 class BaseFormatter(ABC):
     @abstractmethod
     def format_document_for_llm(
-        self, document: Document, include_line_numbers: bool
+        self,
+        document: Document,
+        include_line_numbers: bool,
+        page_numbers: list[int] | None = None,
     ) -> str:
         pass
 
