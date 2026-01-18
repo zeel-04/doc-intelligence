@@ -2,17 +2,27 @@ from typing import Any
 
 from loguru import logger
 
-from document_ai.base import (
+from .base import (
     BaseExtractor,
     BaseFormatter,
     BaseParser,
 )
-from document_ai.extractor import DigitalPDFExtractor
-from document_ai.formatter import DigitalPDFFormatter
-from document_ai.llm import BaseLLM
-from document_ai.parser import DigitalPDFParser
-from document_ai.schemas import Document, PDFDocument, PydanticModel
-from document_ai.types import CitationType, CitationWithBboxesType
+from .extractor import DigitalPDFExtractor
+from .formatter import DigitalPDFFormatter
+from .llm import BaseLLM
+from .parser import DigitalPDFParser
+from .schemas.core import Document, PDFDocument, PydanticModel
+from .schemas.pdf.digital import (
+    PageCitation,
+    PageLineBboxCitation,
+    PageLineCitation,
+)
+
+# Citation type mapping based on include_line_numbers flag
+CITATION_TYPES_DIGITAL_PDF_MAP = {
+    True: (list[PageLineCitation], list[PageLineBboxCitation]),
+    False: (list[PageCitation], Any),
+}
 
 
 class DocumentProcessor:
@@ -29,20 +39,27 @@ class DocumentProcessor:
         self.extractor = extractor
         self.document = document
         self.include_line_numbers = include_line_numbers
-        self.citation_type = CitationType if include_line_numbers else Any
-        self.citation_type_with_bboxes = (
-            CitationWithBboxesType if include_line_numbers else Any
+        # Keep citation types for external access (e.g., defining Pydantic models)
+        self.citation_type, self.citation_type_with_bboxes = (
+            CITATION_TYPES_DIGITAL_PDF_MAP[include_line_numbers]
         )
 
     @classmethod
     def from_digital_pdf(
         cls, uri: str, llm: BaseLLM, include_line_numbers: bool = True, **kwargs
     ) -> "DocumentProcessor":
-        """Create processor for Digital PDF documents"""
+        citation_type, citation_type_with_bboxes = CITATION_TYPES_DIGITAL_PDF_MAP[
+            include_line_numbers
+        ]
         return cls(
             parser=DigitalPDFParser(),
             formatter=DigitalPDFFormatter(),
-            extractor=DigitalPDFExtractor(llm),
+            extractor=DigitalPDFExtractor(
+                llm,
+                include_line_numbers=include_line_numbers,
+                citation_type=citation_type,
+                citation_type_with_bboxes=citation_type_with_bboxes,
+            ),
             document=PDFDocument(uri=uri),
             include_line_numbers=include_line_numbers,
             **kwargs,
@@ -80,16 +97,15 @@ class DocumentProcessor:
         if not self.document.llm_input:
             self.format_document_for_llm(page_numbers=page_numbers)
 
+        logger.debug(f"Document LLM input: {self.document.llm_input}")
+
         return self.extractor.extract(
             document=self.document,
             model=model,
             reasoning=reasoning,
             response_format=response_format,
-            include_line_numbers=self.include_line_numbers,
             llm_input=self.document.llm_input,  # type: ignore[reportUnknownReturnType]
             system_prompt=system_prompt,
             user_prompt=user_prompt,
             openai_text=openai_text,
-            citation_type=self.citation_type,
-            citation_type_with_bboxes=self.citation_type_with_bboxes,
         )

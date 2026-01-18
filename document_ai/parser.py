@@ -3,7 +3,7 @@ from abc import abstractmethod
 import pdfplumber
 
 from .base import BaseParser, Document
-from .schemas import PDF, BoundingBox, Line, Page
+from .schemas.core import PDF, BoundingBox, Line, Page
 from .utils import normalize_bounding_box
 
 

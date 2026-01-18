@@ -1,7 +1,7 @@
 from abc import ABC, abstractmethod
 from typing import Any
 
-from .schemas import Document, PydanticModel
+from .schemas.core import Document, PydanticModel
 
 
 class BaseParser(ABC):
@@ -38,10 +38,14 @@ class BaseExtractor(ABC):
     def __init__(
         self,
         llm: BaseLLM,
+        include_line_numbers: bool = True,
+        citation_type: Any = None,
+        citation_type_with_bboxes: Any = None,
     ):
         self.llm = llm
-        self.system_prompt = ""
-        self.user_prompt = ""
+        self.include_line_numbers = include_line_numbers
+        self.citation_type = citation_type
+        self.citation_type_with_bboxes = citation_type_with_bboxes
 
     @abstractmethod
     def extract(
@@ -50,10 +54,7 @@ class BaseExtractor(ABC):
         model: str,
         reasoning: Any,
         response_format: type[PydanticModel],
-        include_line_numbers: bool,
         llm_input: str,
-        citation_type: Any,
-        citation_type_with_bboxes: Any,
         user_prompt: str | None = None,
         system_prompt: str | None = None,
         openai_text: dict[str, Any] | None = None,

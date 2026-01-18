@@ -1,8 +1,8 @@
-from typing import Any, Type, get_args, get_origin
+from typing import Any, get_args, get_origin
 
-from pydantic import BaseModel, Field, create_model
+from pydantic import BaseModel, create_model
 
-from document_ai.schemas import PDF, BoundingBox, PydanticModel
+from .schemas.core import PDF, BoundingBox, PydanticModel
 
 CITATION_DESCRIPTION = """This is used to cite the page number and line number where the information is mentioned in the document.
 For example:

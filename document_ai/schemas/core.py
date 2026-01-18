@@ -1,6 +1,6 @@
 from typing import Any, Literal, TypeVar
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, ConfigDict, Field
 from typing_extensions import TypedDict
 
 PydanticModel = TypeVar("PydanticModel", bound=BaseModel)
@@ -17,21 +17,10 @@ class BoundingBox(BaseModel):
 
 
 # -------------------------------------
-# Citation schemas for PDF
+# Base Citation
 # -------------------------------------
-class Citation(TypedDict):
-    page: int
-    lines: list[int]
-
-
-class CitationWithBboxes(BaseModel):
-    page: int
-    lines: list[int]
-    bboxes: list[dict[str, Any]]
-
-
-class Mode(BaseModel):
-    include_line_numbers: bool = Field(default=True)
+class BaseCitation(BaseModel):
+    model_config = ConfigDict(title="Citation")
 
 
 # -------------------------------------

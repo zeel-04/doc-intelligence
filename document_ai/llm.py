@@ -4,7 +4,7 @@ from openai import OpenAI
 from tenacity import retry, stop_after_attempt
 
 from .base import BaseLLM
-from .schemas import PydanticModel
+from .schemas.core import PydanticModel
 
 
 class OpenAILLM(BaseLLM):

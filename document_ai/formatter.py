@@ -1,7 +1,7 @@
 from loguru import logger
 
 from .base import BaseFormatter
-from .schemas import Document, PydanticModel
+from .schemas.core import Document, PydanticModel
 
 
 class DigitalPDFFormatter(BaseFormatter):
