@@ -12,7 +12,7 @@ from document_ai.formatter import DigitalPDFFormatter
 from document_ai.llm import BaseLLM
 from document_ai.parser import DigitalPDFParser
 from document_ai.schemas import Document, PDFDocument, PydanticModel
-from document_ai.types import CitationType
+from document_ai.types import CitationType, CitationWithBboxesType
 
 
 class DocumentProcessor:
@@ -30,6 +30,9 @@ class DocumentProcessor:
         self.document = document
         self.include_line_numbers = include_line_numbers
         self.citation_type = CitationType if include_line_numbers else Any
+        self.citation_type_with_bboxes = (
+            CitationWithBboxesType if include_line_numbers else Any
+        )
 
     @classmethod
     def from_digital_pdf(
@@ -87,4 +90,6 @@ class DocumentProcessor:
             system_prompt=system_prompt,
             user_prompt=user_prompt,
             openai_text=openai_text,
+            citation_type=self.citation_type,
+            citation_type_with_bboxes=self.citation_type_with_bboxes,
         )

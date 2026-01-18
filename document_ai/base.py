@@ -52,6 +52,8 @@ class BaseExtractor(ABC):
         response_format: type[PydanticModel],
         include_line_numbers: bool,
         llm_input: str,
+        citation_type: Any,
+        citation_type_with_bboxes: Any,
         user_prompt: str | None = None,
         system_prompt: str | None = None,
         openai_text: dict[str, Any] | None = None,

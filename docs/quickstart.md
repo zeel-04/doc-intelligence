@@ -71,7 +71,7 @@ processor = DocumentProcessor.from_digital_pdf(
 
 # Define your data model with citations
 # If you want to include citations for any field, 
-# you can do so by adding the suffix `_citation` to the field name and using the `processor.citation_type` as the type.
+# Use the `processor.citation_type` as the type.
 class MyData(BaseModel):
     my_data: str
     my_data_citation: processor.citation_type
@@ -88,7 +88,7 @@ data = response.model_dump()
 print(data)
 ```
 
-#### Sample Output
+### Sample Output
 
 ```json
 {

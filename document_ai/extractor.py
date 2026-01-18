@@ -1,13 +1,9 @@
 from typing import Any
 
-from pydantic import BaseModel
-from typing_extensions import TypedDict
-
 from .base import BaseExtractor
 from .llm import BaseLLM
 from .schemas import Document, PydanticModel
-from .types import CitationWithBboxesType
-from .utils import add_appropriate_citation_type, enrich_citations_with_bboxes
+from .utils import add_bboxes_to_citation_model, enrich_citations_with_bboxes
 
 
 class DigitalPDFExtractor(BaseExtractor):
@@ -34,10 +30,12 @@ Document: {document}
         response_format: type[PydanticModel],
         include_line_numbers: bool,
         llm_input: str,
+        citation_type: Any,
+        citation_type_with_bboxes: Any,
         user_prompt: str | None = None,
         system_prompt: str | None = None,
         openai_text: dict[str, Any] | None = None,
-    ) -> PydanticModel:  # type:ignore
+    ) -> PydanticModel:
         messages = [
             {"role": "system", "content": system_prompt or self.system_prompt},
             {
@@ -66,8 +64,11 @@ Document: {document}
                 document.content,  # type: ignore
             )
 
-            final_cited_response_model = add_appropriate_citation_type(
-                response_format,
-                CitationWithBboxesType,
+            final_cited_response_model = add_bboxes_to_citation_model(
+                model=response_format,
+                original_citation_type=citation_type,
+                new_citation_type=citation_type_with_bboxes,
             )
             return final_cited_response_model(**response_with_bboxes)  # type:ignore
+
+        return response  # type:ignore

@@ -107,106 +107,131 @@ def enrich_citations_with_bboxes(
     return _traverse_and_enrich(response_dict)
 
 
-def add_appropriate_citation_type(
-    original_model: type[PydanticModel], CitationType: Type[Any]
-) -> PydanticModel:
+def is_citation_type(field_type: Any, citation_type: Any) -> bool:
     """
-    Creates a new Pydantic model where existing citation fields are updated
-    with proper Citation types. Handles nested models and lists recursively.
-
-    Users should define citation fields with names ending in '_citation'
-    or exactly 'citation' with type Any in their original models.
+    Check if a field type matches the provided citation type.
 
     Args:
-        original_model: The original Pydantic model class
+        field_type: The field type to check
+        citation_type: The citation type to match against (e.g., processor.citation_type)
 
     Returns:
-        A new Pydantic model class with citation fields properly typed
+        True if the field type matches the citation type
+    """
+    # Direct comparison
+    if field_type == citation_type:
+        return True
+
+    # Check if both are generic list types with same args
+    field_origin = get_origin(field_type)
+    citation_origin = get_origin(citation_type)
+
+    if field_origin is list and citation_origin is list:
+        field_args = get_args(field_type)
+        citation_args = get_args(citation_type)
+
+        if field_args and citation_args:
+            # Compare the inner types
+            if field_args[0] == citation_args[0]:
+                return True
+            # Also check by name for TypedDict comparisons
+            if hasattr(field_args[0], "__name__") and hasattr(
+                citation_args[0], "__name__"
+            ):
+                if field_args[0].__name__ == citation_args[0].__name__:
+                    return True
+
+    return False
+
+
+def find_citation_fields(
+    model: type[BaseModel], citation_type: Any, prefix: str = ""
+) -> list[str]:
+    """
+    Recursively find all fields with citation type in a Pydantic model.
+
+    Args:
+        model: The Pydantic model to inspect
+        citation_type: The citation type to search for (e.g., processor.citation_type)
+        prefix: Current field path prefix for nested models
+
+    Returns:
+        List of field paths (e.g., ['my_data_citation', 'nested.citation_field'])
+    """
+    citation_fields = []
+
+    for field_name, field_info in model.model_fields.items():
+        field_type = field_info.annotation
+        current_path = f"{prefix}.{field_name}" if prefix else field_name
+
+        # Check if this field is a citation type
+        if is_citation_type(field_type, citation_type):
+            citation_fields.append(current_path)
+
+        # Check if this field is a nested BaseModel
+        elif isinstance(field_type, type) and issubclass(field_type, BaseModel):
+            nested_fields = find_citation_fields(
+                field_type, citation_type, current_path
+            )
+            citation_fields.extend(nested_fields)
+
+        # Check if it's a list of BaseModel
+        elif get_origin(field_type) is list:
+            args = get_args(field_type)
+            if args and isinstance(args[0], type) and issubclass(args[0], BaseModel):
+                nested_fields = find_citation_fields(
+                    args[0], citation_type, current_path
+                )
+                citation_fields.extend(nested_fields)
+
+    return citation_fields
+
+
+def add_bboxes_to_citation_model(
+    model: type[BaseModel], original_citation_type: Any, new_citation_type: Any
+) -> type[BaseModel]:
+    """
+    Recursively modify a Pydantic model to replace citation type with new citation type.
+
+    Args:
+        model: The original Pydantic model
+        original_citation_type: The citation type to replace (e.g., processor.citation_type)
+        new_citation_type: The new citation type (e.g., processor.citation_type_with_bbox)
+
+    Returns:
+        A new model class with updated citation types
     """
     new_fields = {}
 
-    for field_name, field_info in original_model.model_fields.items():
+    for field_name, field_info in model.model_fields.items():
         field_type = field_info.annotation
-        origin = get_origin(field_type)
+        default = field_info.default if field_info.default is not None else ...
 
-        # Preserve the original field's metadata
-        original_default = (
-            field_info.default
-            if field_info.default is not field_info.default_factory
-            else ...
-        )
-        original_description = field_info.description
+        # If it's a citation field, update the type
+        if is_citation_type(field_type, original_citation_type):
+            new_fields[field_name] = (new_citation_type, default)
 
-        # Check if this is a citation field that needs type modification
-        is_citation_field = field_name.endswith("_citation") or field_name == "citation"
-
-        if is_citation_field:
-            # Use the CitationType and create a new Field with proper defaults
-            new_type = CitationType
-            default_value = Field(
-                default_factory=list, description=CITATION_DESCRIPTION
-            )
-
-            new_fields[field_name] = (new_type, default_value)
-
-        # Handle lists
-        elif origin is list:
-            inner_type = get_args(field_type)[0]
-
-            # If it's a list of BaseModel, recursively process
-            if isinstance(inner_type, type) and issubclass(inner_type, BaseModel):
-                new_inner_type = add_appropriate_citation_type(inner_type, CitationType)
-                new_fields[field_name] = (
-                    list[new_inner_type],
-                    Field(default_factory=list, description=original_description),
-                )
-            else:
-                # For primitive types in lists, keep as is
-                if field_info.default_factory:
-                    new_fields[field_name] = (
-                        field_type,
-                        Field(
-                            default_factory=field_info.default_factory,
-                            description=original_description,
-                        ),
-                    )
-                else:
-                    new_fields[field_name] = (
-                        field_type,
-                        Field(
-                            default=original_default, description=original_description
-                        ),
-                    )
-
-        # Handle nested models
+        # If it's a nested BaseModel, recursively modify it
         elif isinstance(field_type, type) and issubclass(field_type, BaseModel):
-            new_inner_type = add_appropriate_citation_type(field_type, CitationType)
-            new_fields[field_name] = (
-                new_inner_type | None,
-                Field(default=None, description=original_description),
+            modified_nested = add_bboxes_to_citation_model(
+                field_type, original_citation_type, new_citation_type
             )
+            new_fields[field_name] = (modified_nested, default)
 
-        # Handle Union types and primitive types
-        else:
-            if field_info.default_factory:
-                new_fields[field_name] = (
-                    field_type,
-                    Field(
-                        default_factory=field_info.default_factory,
-                        description=original_description,
-                    ),
+        # If it's a list of BaseModel, modify the inner model
+        elif get_origin(field_type) is list:
+            args = get_args(field_type)
+            if args and isinstance(args[0], type) and issubclass(args[0], BaseModel):
+                modified_nested = add_bboxes_to_citation_model(
+                    args[0], original_citation_type, new_citation_type
                 )
+                new_fields[field_name] = (list[modified_nested], default)  # type: ignore
             else:
-                new_fields[field_name] = (
-                    field_type,
-                    Field(default=original_default, description=original_description),
-                )
+                new_fields[field_name] = (field_type, default)
 
-    # Create new model with the same name as original
-    new_model = create_model(original_model.__name__, **new_fields)
+        # Otherwise keep the original field
+        else:
+            new_fields[field_name] = (field_type, default)
 
-    # Preserve the original model's docstring
-    if original_model.__doc__:
-        new_model.__doc__ = original_model.__doc__
-
-    return new_model
+    # Create new model with modified fields
+    return create_model(f"{model.__name__}WithBBox", __base__=BaseModel, **new_fields)
