@@ -27,6 +27,9 @@ dev = [
     "ruff>=0.14.13",
 ]
 
+[tool.hatch.build.targets.wheel]
+packages = ["document_ai"]
+
 [tool.ruff.lint]
 select = ["I"]
 exclude = ["notebooks/"]
