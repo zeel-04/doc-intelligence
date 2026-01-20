@@ -3,7 +3,7 @@ requires = ["hatchling"]
 build-backend = "hatchling.build"
 
 [project]
-name = "document-ai"
+name = "doc-intelligence"
 version = "0.1.0"
 description = "Document AI - Intelligent document processing and extraction"
 readme = "README.md"
