@@ -1,6 +1,6 @@
 # Document AI
 
-**Documentation:** [https://zeel-04.github.io/Document-AI/](https://zeel-04.github.io/Document-AI/)
+**Documentation:** [https://zeel-04.github.io/document-ai/](https://zeel-04.github.io/document-ai/)
 
 A library for parsing, formatting, and processing documents that can be used to build AI-powered document processing pipelines with structured data extraction and citation support.
 

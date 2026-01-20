@@ -1,11 +1,11 @@
 site_name: Document AI
 site_description: Document AI - Intelligent document processing and extraction
-site_url: https://zeel-04.github.io/Document-AI/
+site_url: https://zeel-04.github.io/document-ai/
 docs_dir: docs
 
 # Repository information
 repo_name: document_ai
-repo_url: https://github.com/zeel-04/Document-AI
+repo_url: https://github.com/zeel-04/document-ai
 edit_uri: edit/main/docs/
 
 # Navigation
