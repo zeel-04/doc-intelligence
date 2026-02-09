@@ -1,6 +1,8 @@
 from abc import ABC, abstractmethod
 from typing import Any
 
+from langchain_core.output_parsers import JsonOutputParser
+
 from .schemas.core import Document, PydanticModel
 
 
@@ -15,8 +17,7 @@ class BaseFormatter(ABC):
     def format_document_for_llm(
         self,
         document: Document,
-        include_line_numbers: bool,
-        page_numbers: list[int] | None = None,
+        **kwargs,
     ) -> str:
         pass
 
@@ -33,30 +34,31 @@ class BaseLLM(ABC):
     ) -> PydanticModel | None:
         pass
 
+    @abstractmethod
+    def generate_text(
+        self,
+        system_prompt: str,
+        user_prompt: str,
+        **kwargs,
+    ) -> str:
+        pass
+
 
 class BaseExtractor(ABC):
     def __init__(
         self,
         llm: BaseLLM,
-        include_line_numbers: bool = True,
-        citation_type: Any = None,
-        citation_type_with_bboxes: Any = None,
     ):
         self.llm = llm
-        self.include_line_numbers = include_line_numbers
-        self.citation_type = citation_type
-        self.citation_type_with_bboxes = citation_type_with_bboxes
+        self.json_parser = JsonOutputParser()
 
     @abstractmethod
     def extract(
         self,
         document: Document,
-        model: str,
-        reasoning: Any,
+        llm_config: dict[str, Any],
+        extraction_config: dict[str, Any],
+        formatter: BaseFormatter,
         response_format: type[PydanticModel],
-        llm_input: str,
-        user_prompt: str | None = None,
-        system_prompt: str | None = None,
-        openai_text: dict[str, Any] | None = None,
-    ) -> PydanticModel:
+    ) -> tuple[PydanticModel, dict[str, Any] | None]:
         pass

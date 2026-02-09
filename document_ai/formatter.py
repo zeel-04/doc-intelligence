@@ -2,6 +2,7 @@ from loguru import logger
 
 from .base import BaseFormatter
 from .schemas.core import Document, PydanticModel
+from .types.pdf import PDFExtractionMode
 
 
 class DigitalPDFFormatter(BaseFormatter):
@@ -32,20 +33,30 @@ class DigitalPDFFormatter(BaseFormatter):
     def format_document_for_llm(
         self,
         document: Document,
-        include_line_numbers: bool,
-        page_numbers: list[int] | None = None,
+        **kwargs,
     ) -> str:
         content = document.content
-        if page_numbers and content.pages:  # type: ignore
+        if content is None:
+            raise ValueError(
+                "DigitalPDFFormatter: Document content is None. "
+                "Make sure to parse the document before formatting."
+            )
+        page_numbers = kwargs.get("page_numbers", None)
+        if page_numbers and content.pages:
             page_numbers.sort()
             page_numbers = list(set(page_numbers))
-            content.pages = [  # type: ignore
+            content.pages = [
                 page
-                for page_number, page in enumerate(content.pages)  # type: ignore
+                for page_number, page in enumerate(content.pages)
                 if page_number in page_numbers
             ]
-            logger.info(f"Formatting {len(content.pages)} pages")  # type: ignore
-        if include_line_numbers:
-            return "\n\n".join(self._format_with_line_numbers(content))  # type: ignore
+            logger.info(f"Formatting {len(content.pages)} pages")
+        if document.extraction_mode == PDFExtractionMode.MULTI_PASS:
+            raise NotImplementedError("Multi-pass extraction is not implemented yet")
+        if (
+            document.include_citations
+            and document.extraction_mode == PDFExtractionMode.SINGLE_PASS
+        ):
+            return "\n\n".join(self._format_with_line_numbers(content))
         else:
-            return "\n\n".join(self._format_without_line_numbers(content))  # type: ignore
+            return "\n\n".join(self._format_without_line_numbers(content))

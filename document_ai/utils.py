@@ -2,7 +2,8 @@ from typing import Any, get_args, get_origin
 
 from pydantic import BaseModel, create_model
 
-from .schemas.core import PDF, BoundingBox, PydanticModel
+from .schemas.core import BoundingBox, Document
+from .schemas.pdf import PDF
 
 CITATION_DESCRIPTION = """This is used to cite the page number and line number where the information is mentioned in the document.
 For example:
@@ -32,29 +33,38 @@ def denormalize_bounding_box(
 
 
 def enrich_citations_with_bboxes(
-    response: type[PydanticModel], parsed_pdf: PDF
+    response: dict[str, Any], document: Document
 ) -> dict[str, Any]:
     """
-    Enriches citation fields in the response with bounding boxes from the parsed PDF.
+    Enriches citation fields in the response dict with bounding boxes from the document.
 
     This function traverses the response dictionary recursively to find all citation
-    dictionaries (identified by having both 'page' and 'lines' keys), then adds
-    bounding box information from the corresponding lines in the parsed PDF.
+    dictionaries (identified by having both 'page' and 'lines' keys), then replaces
+    'lines' with 'bboxes' looked up from the corresponding lines in the parsed document.
 
     Args:
-        response: The Pydantic model response from LLM extraction
-        parsed_pdf: The parsed PDF document containing pages and line bounding boxes
+        response: The response dictionary (e.g. from LLM structured output)
+        document: The Document instance (e.g. PDFDocument) with parsed content
 
     Returns:
-        A dictionary with bboxes added to all citation fields. Each citation will
-        have a 'bboxes' key containing a list of normalized BoundingBox dicts.
+        A dictionary with bboxes added to all citation fields and 'lines' removed.
+        Each citation will have 'page' and 'bboxes' (a list of normalized BoundingBox dicts).
+
+    Raises:
+        ValueError: If document.content is None (document not parsed yet)
 
     Note:
-        - The Citation schema is NOT modified - bboxes are only added in the returned
-          dict, keeping the LLM-facing schema clean
+        - The 'lines' key is removed from citations in the output since bboxes
+          replace them for downstream use
         - Bounding boxes are normalized (0-1 scale)
         - Handles out-of-bounds page/line indices gracefully by skipping them
     """
+    if document.content is None:
+        raise ValueError(
+            "Document content is None. Parse the document before enriching citations."
+        )
+
+    parsed_pdf: PDF = document.content
 
     def _is_citation_dict(obj: Any) -> bool:
         """Check if an object is a citation dictionary."""
@@ -86,8 +96,8 @@ def enrich_citations_with_bboxes(
                 # Convert BoundingBox to dict
                 bboxes.append(bbox.model_dump())
 
-        # Create enriched citation with bboxes
-        enriched = citation.copy()
+        # Create enriched citation: add bboxes, remove lines
+        enriched = {k: v for k, v in citation.items() if k != "lines"}
         enriched["bboxes"] = bboxes
         return enriched
 
@@ -102,9 +112,54 @@ def enrich_citations_with_bboxes(
         else:
             return obj
 
-    # Convert response to dict and enrich
-    response_dict = response.model_dump()  # type:ignore
-    return _traverse_and_enrich(response_dict)
+    return _traverse_and_enrich(response)
+
+
+def strip_citations(response: dict[str, Any]) -> dict[str, Any]:
+    """
+    Strips citation wrappers from a response dict, returning only the plain values.
+
+    Recursively traverses the dict and unwraps any ``{'value': ..., 'citations': [...]}``
+    structure into just the value.
+
+    Args:
+        response: The response dictionary with citation-wrapped values.
+
+    Returns:
+        A plain dictionary with citations removed and values unwrapped.
+
+    Example::
+
+        >>> strip_citations({
+        ...     'name': {'value': 'Zeel', 'citations': [{'page': 1, 'lines': [1]}]},
+        ...     'ids': [
+        ...         {'value': 101, 'citations': [{'page': 1, 'lines': [1]}]},
+        ...         {'value': 205, 'citations': [{'page': 1, 'lines': [1]}]},
+        ...     ],
+        ... })
+        {'name': 'Zeel', 'ids': [101, 205]}
+    """
+
+    def _is_value_citation_dict(obj: Any) -> bool:
+        """Check if an object is a {'value': ..., 'citations': [...]} wrapper."""
+        return (
+            isinstance(obj, dict)
+            and "value" in obj
+            and "citations" in obj
+            and len(obj) == 2
+        )
+
+    def _strip(obj: Any) -> Any:
+        if _is_value_citation_dict(obj):
+            return obj["value"]
+        elif isinstance(obj, dict):
+            return {key: _strip(value) for key, value in obj.items()}
+        elif isinstance(obj, list):
+            return [_strip(item) for item in obj]
+        else:
+            return obj
+
+    return _strip(response)
 
 
 def is_citation_type(field_type: Any, citation_type: Any) -> bool:

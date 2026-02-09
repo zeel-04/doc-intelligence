@@ -1,7 +1,7 @@
-from typing import Any, Literal, TypeVar
+from enum import Enum
+from typing import Any, TypeVar
 
-from pydantic import BaseModel, ConfigDict, Field
-from typing_extensions import TypedDict
+from pydantic import BaseModel, ConfigDict
 
 PydanticModel = TypeVar("PydanticModel", bound=BaseModel)
 
@@ -27,31 +27,16 @@ class BaseCitation(BaseModel):
 # Generic Document schema
 # -------------------------------------
 class Document(BaseModel):
-    document_type: str
     uri: str
     content: type[PydanticModel] | None = None
-    llm_input: Any | None = None
+    include_citations: bool = True
+    extraction_mode: Enum
+    response: type[PydanticModel] | None = None
+    response_metadata: dict[str, Any] | None = None
 
 
 # -------------------------------------
-# PDF schema
+# Extraction config
 # -------------------------------------
-class Line(BaseModel):
-    text: str
-    bounding_box: BoundingBox
-
-
-class Page(BaseModel):
-    lines: list[Line]
-    width: int | float
-    height: int | float
-
-
-class PDF(BaseModel):
-    pages: list[Page] = Field(default_factory=list)
-
-
-class PDFDocument(Document):
-    document_type: str = "pdf"
-    content: PDF | None = None
-    llm_input: str | None = None
+class ExtractionConfig(BaseModel):
+    include_citations: bool

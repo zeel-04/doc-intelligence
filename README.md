@@ -73,41 +73,45 @@ processor = DocumentProcessor.from_digital_pdf(
     llm=llm,
 )
 
-# Define your data model with citations
-# If you want to include citations for any field, 
-# Use the `processor.citation_type` as the type.
-class MyData(BaseModel):
-    my_data: str
-    my_data_citation: processor.citation_type
+# Define your data model
+class Balance(BaseModel):
+    ending_balance: float
+
+# Configure extraction with citations
+config = {
+    "response_format": Balance,
+    "llm_config": {
+        "model": "gpt-5",
+        "reasoning": {"effort": "minimal"},
+    },
+    "extraction_config": {
+        "include_citations": True,
+        "extraction_mode": "single_pass",
+        "page_numbers": [0, 1],  # Optional: specify which pages to process
+    }
+}
 
 # Extract structured data
-response = processor.extract(
-    model="gpt-5-mini",
-    reasoning={"effort": "low"},
-    response_format=MyData,
-)
+response = processor.extract(config)
 
-# Get the extracted data
-data = response.model_dump()
-print(data)
+# Get the extracted data and citations
+data, citations = response
+print(f"Extracted data: {data}")
+print(f"Citations: {citations}")
 ```
 
 ### Sample Output
 
-```json
-{
-    "my_data": "my data",
-    "my_data_citation": [{
-        "page": 0,
-        "lines": [10],
-        "bboxes": [{
-            "x0": 0.058823529411764705,
-            "top": 0.6095707475757575,
-            "x1": 0.5635455037254902,
-            "bottom": 0.6221969596969696
-        }]
-    }]
-}
+The `extract` method returns a tuple containing the extracted data and citation information:
+
+```python
+(Balance(ending_balance=111.61),
+ {'ending_balance': {'value': 111.61,
+   'citations': [{'page': 0,
+     'bboxes': [{'x0': 0.058823529411764705,
+       'top': 0.6095707475757575,
+       'x1': 0.5635455037254902,
+       'bottom': 0.6221969596969696}]}]}})
 ```
 
 ## Documentation

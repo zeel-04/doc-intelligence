@@ -2,72 +2,75 @@ from typing import Any
 
 from loguru import logger
 
-from .base import BaseExtractor
+from .base import BaseExtractor, BaseFormatter
 from .llm import BaseLLM
+from .pydantic_to_json_instance_schema import (
+    pydantic_to_json_instance_schema,
+    stringify_schema,
+)
 from .schemas.core import Document, PydanticModel
-from .utils import add_bboxes_to_citation_model, enrich_citations_with_bboxes
+from .types.pdf import PDFExtractionMode
+from .utils import enrich_citations_with_bboxes, strip_citations
 
 
 class DigitalPDFExtractor(BaseExtractor):
-    def __init__(
-        self,
-        llm: BaseLLM,
-        include_line_numbers: bool = True,
-        citation_type: Any = None,
-        citation_type_with_bboxes: Any = None,
-    ):
-        super().__init__(
-            llm, include_line_numbers, citation_type, citation_type_with_bboxes
-        )
+    def __init__(self, llm: BaseLLM):
+        super().__init__(llm)
 
-        self.system_prompt = """Act as an expert in the field of document extraction and information extraction from documents.
-Note:
-- If user defines citations, use the page number and line number where the information is mentioned in the document.
-Example: [{"page": 1, "lines": [10, 11]}, {"page": 2, "lines": [20]}]
-"""
-        self.user_prompt = """Please extract the information from the below document.
-Document: {document}
+        self.system_prompt = """Act as an expert in the field of document extraction and information extraction from documents."""
+        self.user_prompt = """Your job is to extract structured mentioned in schema data from a document given below.
+
+DOCUMENT:
+{content_text}
+
+OUTPUT SCHEMA:
+{schema}
+
+Generate output in JSON format.
 """
 
     def extract(
         self,
         document: Document,
-        model: str,
-        reasoning: Any,
+        llm_config: dict[str, Any],
+        extraction_config: dict[str, Any],
+        formatter: BaseFormatter,
         response_format: type[PydanticModel],
-        llm_input: str,
-        user_prompt: str | None = None,
-        system_prompt: str | None = None,
-        openai_text: dict[str, Any] | None = None,
-    ) -> PydanticModel:
-        messages = [
-            {"role": "system", "content": system_prompt or self.system_prompt},
-            {
-                "role": "user",
-                "content": user_prompt or self.user_prompt.format(document=llm_input),
-            },
-        ]
-
-        response = self.llm.generate_structured_output(
-            model=model,
-            messages=messages,
-            reasoning=reasoning,
-            output_format=response_format,
-            openai_text=openai_text,
-        )
-
-        # enrich the response with bboxes
-        if self.include_line_numbers:
-            response_with_bboxes = enrich_citations_with_bboxes(
-                response,  # type:ignore
-                document.content,  # type: ignore
+    ) -> tuple[PydanticModel, dict[str, Any] | None]:
+        if document.extraction_mode == PDFExtractionMode.SINGLE_PASS:
+            json_instance_schema = stringify_schema(
+                pydantic_to_json_instance_schema(
+                    response_format,
+                    citation=document.include_citations,
+                    citation_level="line",
+                )
+            )
+            logger.debug(
+                f"DigitalPDFExtractor: extract: json_instance_schema: {json_instance_schema}"
+            )
+            content_text = formatter.format_document_for_llm(
+                document, **extraction_config
+            )
+            logger.debug(f"DigitalPDFExtractor: extract: content_text: {content_text}")
+            user_prompt = self.user_prompt.format(
+                content_text=content_text, schema=json_instance_schema
             )
 
-            final_cited_response_model = add_bboxes_to_citation_model(
-                model=response_format,
-                original_citation_type=self.citation_type,
-                new_citation_type=self.citation_type_with_bboxes,
+            response = self.llm.generate_text(
+                system_prompt=self.system_prompt,
+                user_prompt=user_prompt,
+                **llm_config,
             )
-            return final_cited_response_model(**response_with_bboxes)  # type:ignore
 
-        return response  # type:ignore
+        if document.extraction_mode == PDFExtractionMode.MULTI_PASS:
+            raise NotImplementedError("Multi-pass extraction is not implemented yet")
+
+        response_dict = self.json_parser.parse(response)
+
+        if document.include_citations:
+            response_metadata = enrich_citations_with_bboxes(response_dict, document)
+            response_dict = strip_citations(response_metadata)
+        else:
+            response_metadata = None
+
+        return response_format(**response_dict), response_metadata

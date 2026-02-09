@@ -69,39 +69,57 @@ processor = DocumentProcessor.from_digital_pdf(
     llm=llm,
 )
 
-# Define your data model with citations
-# If you want to include citations for any field, 
-# Use the `processor.citation_type` as the type.
-class MyData(BaseModel):
-    my_data: str
-    my_data_citation: processor.citation_type
+# Define your data model
+class Balance(BaseModel):
+    ending_balance: float
+
+# Configure extraction with citations
+config = {
+    "response_format": Balance,
+    "llm_config": {
+        "model": "gpt-5",
+        "reasoning": {"effort": "minimal"},
+    },
+    "extraction_config": {
+        "include_citations": True,
+        "extraction_mode": "single_pass",
+        "page_numbers": [0, 1],  # Optional: specify which pages to process
+    }
+}
 
 # Extract structured data
-response = processor.extract(
-    model="gpt-5-mini",
-    reasoning={"effort": "low"},
-    response_format=MyData,
-)
+response = processor.extract(config)
 
-# Get the extracted data
-data = response.model_dump()
-print(data)
+# Get the extracted data and citations
+data, citations = response
+print(f"Extracted data: {data}")
+print(f"Citations: {citations}")
 ```
 
 ### Sample Output
 
-```json
-{
-    "my_data": "my data",
-    "my_data_citation": [{
-        "page": 0,
-        "lines": [10],
-        "bboxes": [{
-            "x0": 0.058823529411764705,
-            "top": 0.6095707475757575,
-            "x1": 0.5635455037254902,
-            "bottom": 0.6221969596969696
-        }]
-    }]
-}
+The `extract` method returns a tuple containing:
+1. The extracted data as a Pydantic model instance
+2. A dictionary with citation information for each field
+
+```python
+# Example output
+(Balance(ending_balance=111.61),
+ {'ending_balance': {'value': 111.61,
+   'citations': [{'page': 0,
+     'bboxes': [{'x0': 0.058823529411764705,
+       'top': 0.6095707475757575,
+       'x1': 0.5635455037254902,
+       'bottom': 0.6221969596969696}]}]}})
 ```
+
+### Configuration Options
+
+- **response_format**: Your Pydantic model class
+- **llm_config**: 
+  - `model`: The OpenAI model to use (e.g., "gpt-5", "gpt-4o")
+  - `reasoning`: Optional reasoning configuration with `effort` level ("minimal", "low", "medium", "high")
+- **extraction_config**:
+  - `include_citations`: Set to `True` to get citation information
+  - `extraction_mode`: "single_pass" for single-pass extraction
+  - `page_numbers`: Optional list of page indices to process (0-indexed)
