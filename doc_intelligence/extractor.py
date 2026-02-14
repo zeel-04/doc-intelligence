@@ -36,7 +36,7 @@ Generate output in JSON format.
         extraction_config: dict[str, Any],
         formatter: BaseFormatter,
         response_format: type[PydanticModel],
-    ) -> tuple[PydanticModel, dict[str, Any] | None]:
+    ) -> dict[str, Any] | None:
         if document.extraction_mode == PDFExtractionMode.SINGLE_PASS:
             json_instance_schema = stringify_schema(
                 pydantic_to_json_instance_schema(
@@ -73,4 +73,7 @@ Generate output in JSON format.
         else:
             response_metadata = None
 
-        return response_format(**response_dict), response_metadata
+        return {
+            "extracted_data": response_format(**response_dict),
+            "metadata": response_metadata,
+        }

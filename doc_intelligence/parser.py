@@ -1,6 +1,9 @@
 from abc import abstractmethod
+from io import BytesIO
+from urllib.parse import urlparse
 
 import pdfplumber
+import requests
 
 from .base import BaseParser
 from .schemas.core import Document
@@ -17,7 +20,19 @@ class PDFParser(BaseParser):
 class DigitalPDFParser(PDFParser):
     def parse(self, document: Document) -> PDFDocument:
         pages = []
-        with pdfplumber.open(document.uri) as pdf:
+
+        # Check if URI is a URL or local path
+        parsed = urlparse(document.uri)
+        if parsed.scheme in ("http", "https"):
+            # Download the PDF from URL
+            response = requests.get(document.uri)
+            response.raise_for_status()
+            pdf_file = BytesIO(response.content)
+        else:
+            # Use local file path
+            pdf_file = document.uri
+
+        with pdfplumber.open(pdf_file) as pdf:
             for page in pdf.pages:
                 lines = []
                 for line in page.extract_text_lines(return_chars=False):

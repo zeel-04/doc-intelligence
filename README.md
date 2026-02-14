@@ -4,6 +4,8 @@
 
 A library for parsing, formatting, and processing documents that can be used to build AI-powered document processing pipelines with structured data extraction and citation support.
 
+![Document AI](./docs/static/doc_intelligence.jpg)
+
 ## Features
 
 - Extract structured data from PDF documents using LLMs

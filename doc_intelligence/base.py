@@ -60,5 +60,5 @@ class BaseExtractor(ABC):
         extraction_config: dict[str, Any],
         formatter: BaseFormatter,
         response_format: type[PydanticModel],
-    ) -> tuple[PydanticModel, dict[str, Any] | None]:
+    ) -> dict[str, Any] | None:
         pass
