@@ -10,7 +10,7 @@ A library for parsing, formatting, and processing documents that can be used to 
 
 - Extract structured data from PDF documents using LLMs
 - Automatic citation tracking with page numbers, line numbers, and bounding boxes
-- Support for digital PDFs
+- Support for digital PDFs (local files and URLs)
 - Type-safe data models using Pydantic
 - OpenAI integration with support for reasoning models
 
@@ -55,21 +55,21 @@ load_dotenv()
 # Initialize the LLM
 llm = OpenAILLM()
 
-# Create a processor from a PDF file
+# Create a processor from a PDF file (local or URL)
 processor = DocumentProcessor.from_digital_pdf(
-    uri="path/to/your/document.pdf",
+    uri="https://example-files.online-convert.com/document/pdf/example.pdf",  # Can also be a local path
     llm=llm,
 )
 
 # Define your data model
-class Balance(BaseModel):
-    ending_balance: float
+class License(BaseModel):
+    license_name: str
 
 # Configure extraction with citations
 config = {
-    "response_format": Balance,
+    "response_format": License,
     "llm_config": {
-        "model": "gpt-5",
+        "model": "gpt-5-mini",
         "reasoning": {"effort": "minimal"},
     },
     "extraction_config": {
@@ -82,24 +82,35 @@ config = {
 # Extract structured data
 response = processor.extract(config)
 
-# Get the extracted data and citations
-data, citations = response
-print(f"Extracted data: {data}")
-print(f"Citations: {citations}")
+# Access the extracted data and citations
+extracted_data = response["extracted_data"]
+metadata = response["metadata"]
+print(f"Extracted data: {extracted_data}")
+print(f"Metadata: {metadata}")
 ```
 
 ### Sample Output
 
-The `extract` method returns a tuple containing the extracted data and citation information:
+The `extract` method returns a dictionary containing the extracted data and metadata with citation information:
 
 ```python
-(Balance(ending_balance=111.61),
- {'ending_balance': {'value': 111.61,
-   'citations': [{'page': 0,
-     'bboxes': [{'x0': 0.058823529411764705,
-       'top': 0.6095707475757575,
-       'x1': 0.5635455037254902,
-       'bottom': 0.6221969596969696}]}]}})
+{
+    'extracted_data': License(license_name='Attribution-ShareAlike 3.0 Unported'),
+    'metadata': {
+        'license_name': {
+            'value': 'Attribution-ShareAlike 3.0 Unported',
+            'citations': [{
+                'page': 0,
+                'bboxes': [{
+                    'x0': 0.20106913928643427,
+                    'top': 0.8587326111744586,
+                    'x1': 0.5648947389639185,
+                    'bottom': 0.8718454960091222
+                }]
+            }]
+        }
+    }
+}
 ```
 
 ## Documentation
