@@ -1,0 +1,89 @@
+---
+description: Python coding standards — SOLID principles, formatting, and typing
+globs: "**/*.py"
+alwaysApply: false
+---
+
+# Python Coding Standards
+
+## SOLID Principles
+
+### Single Responsibility
+
+Each module, class, and function should have one clear responsibility. If a class handles both parsing and formatting, split it.
+
+### Open/Closed
+
+Extend behavior through new subclasses of the abstract bases in `base.py` rather than modifying existing implementations. Example: to support a new document type, create a new `BaseParser` subclass instead of adding conditionals to `DigitalPDFParser`.
+
+### Liskov Substitution
+
+All subclasses of `BaseParser`, `BaseFormatter`, `BaseLLM`, and `BaseExtractor` must honor the interface contracts defined in `base.py`. Never narrow parameter types or widen return types.
+
+### Interface Segregation
+
+Keep abstract interfaces minimal. If a parser doesn't need formatting capabilities, don't force it to implement formatting methods.
+
+### Dependency Inversion
+
+Depend on abstractions (`BaseLLM`, `BaseParser`) not concrete classes. `DocumentProcessor` accepts abstract types and is wired with concrete implementations at construction time.
+
+```python
+# Good — depends on abstraction
+class DigitalPDFExtractor(BaseExtractor):
+    def __init__(self, llm: BaseLLM):
+        super().__init__(llm)
+
+# Bad — depends on concrete class
+class DigitalPDFExtractor:
+    def __init__(self, llm: OpenAILLM):
+        self.llm = llm
+```
+
+## Type Annotations
+
+- **All** function signatures must have full type annotations (parameters and return types).
+- Use modern union syntax: `str | None` instead of `Optional[str]`, `int | float` instead of `Union[int, float]`.
+- Use lowercase generics: `list[str]`, `dict[str, Any]`, `type[PydanticModel]`.
+- Use `TypeVar` for generic model parameters (see `PydanticModel` in `schemas/core.py`).
+- Use `Any` sparingly — prefer specific types where possible.
+
+```python
+# Good
+def normalize_bounding_box(
+    bounding_box: BoundingBox, page_width: int | float, page_height: int | float
+) -> BoundingBox: ...
+
+# Bad — missing return type, uses Optional instead of |
+def normalize_bounding_box(bounding_box, page_width, page_height): ...
+```
+
+## Formatting
+
+- **Formatter**: ruff (configured in `pyproject.toml`)
+- **Import ordering**: ruff's isort (`select = ["I"]`)
+- **Import style**: stdlib → third-party → local; use relative imports within `doc_intelligence` (e.g., `from .base import BaseParser`)
+- **Indentation**: 4 spaces
+- **Line length**: follow ruff defaults (88 chars)
+- **Docstrings**: Google-style with Args/Returns/Raises sections for public functions
+
+## Pydantic Models
+
+- Inherit from `BaseModel` for all data schemas.
+- Use `Field(...)` with `description` for documented fields.
+- Place schemas in `doc_intelligence/schemas/` organized by domain.
+- Use `model_dump()` / `model_validate()` (Pydantic v2 API).
+
+## Error Handling
+
+- Use `loguru` for logging, not `print()` or stdlib `logging`.
+- Raise specific exceptions (`ValueError`, `TypeError`) with descriptive messages.
+- Use `tenacity` for retry logic on external calls (LLM, network).
+
+## Naming
+
+- **Classes**: PascalCase (`DigitalPDFParser`, `BoundingBox`)
+- **Functions/methods**: snake_case (`enrich_citations_with_bboxes`)
+- **Constants**: UPPER_SNAKE_CASE (`CITATION_DESCRIPTION`)
+- **Private helpers**: prefix with `_` (`_is_citation_dict`)
+- **Type aliases**: PascalCase (`PydanticModel`)
