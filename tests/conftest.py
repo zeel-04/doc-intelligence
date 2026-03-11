@@ -6,9 +6,9 @@ import pytest
 from pydantic import BaseModel, Field
 
 from doc_intelligence.base import BaseExtractor, BaseFormatter, BaseLLM, BaseParser
+from doc_intelligence.pdf.schemas import PDF, Line, Page, PDFDocument
+from doc_intelligence.pdf.types import PDFExtractionMode
 from doc_intelligence.schemas.core import BoundingBox, Document, PydanticModel
-from doc_intelligence.schemas.pdf import PDF, Line, Page, PDFDocument
-from doc_intelligence.types.pdf import PDFExtractionMode
 
 
 # ---------------------------------------------------------------------------
@@ -52,7 +52,7 @@ class FakeParser(BaseParser):
         self.result = result
         self.call_count = 0
 
-    def parse(self, document: Document) -> PDFDocument:
+    def parse(self, document: Document) -> PDFDocument:  # type: ignore[override]
         self.call_count += 1
         if self.result is not None:
             return self.result  # type: ignore[return-value]

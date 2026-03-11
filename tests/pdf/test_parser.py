@@ -5,8 +5,8 @@ from unittest.mock import MagicMock, patch
 
 import pytest
 
-from doc_intelligence.parser import DigitalPDFParser, PDFParser
-from doc_intelligence.schemas.pdf import PDFDocument
+from doc_intelligence.pdf.parser import DigitalPDFParser, PDFParser
+from doc_intelligence.pdf.schemas import PDFDocument
 
 
 def _make_mock_page(
@@ -51,7 +51,7 @@ class TestPDFParserABC:
 # DigitalPDFParser
 # ---------------------------------------------------------------------------
 class TestDigitalPDFParser:
-    @patch("doc_intelligence.parser.pdfplumber")
+    @patch("doc_intelligence.pdf.parser.pdfplumber")
     def test_parse_local_file(self, mock_pdfplumber):
         mock_pdf = _make_mock_pdf()
         mock_pdfplumber.open.return_value = mock_pdf
@@ -66,8 +66,8 @@ class TestDigitalPDFParser:
         assert len(result.content.pages) == 1
         assert len(result.content.pages[0].lines) == 2
 
-    @patch("doc_intelligence.parser.requests")
-    @patch("doc_intelligence.parser.pdfplumber")
+    @patch("doc_intelligence.pdf.parser.requests")
+    @patch("doc_intelligence.pdf.parser.pdfplumber")
     def test_parse_http_url(self, mock_pdfplumber, mock_requests):
         mock_response = MagicMock()
         mock_response.content = b"fake-pdf-bytes"
@@ -86,8 +86,8 @@ class TestDigitalPDFParser:
         assert isinstance(call_arg, BytesIO)
         assert isinstance(result, PDFDocument)
 
-    @patch("doc_intelligence.parser.requests")
-    @patch("doc_intelligence.parser.pdfplumber")
+    @patch("doc_intelligence.pdf.parser.requests")
+    @patch("doc_intelligence.pdf.parser.pdfplumber")
     def test_parse_https_url(self, mock_pdfplumber, mock_requests):
         mock_response = MagicMock()
         mock_response.content = b"fake-pdf-bytes"
@@ -100,7 +100,7 @@ class TestDigitalPDFParser:
 
         mock_requests.get.assert_called_once_with("https://example.com/test.pdf")
 
-    @patch("doc_intelligence.parser.pdfplumber")
+    @patch("doc_intelligence.pdf.parser.pdfplumber")
     def test_bboxes_are_normalized(self, mock_pdfplumber):
         page = _make_mock_page(
             width=500,
@@ -114,13 +114,14 @@ class TestDigitalPDFParser:
         parser = DigitalPDFParser()
         result = parser.parse(PDFDocument(uri="test.pdf"))
 
+        assert result.content is not None
         bbox = result.content.pages[0].lines[0].bounding_box
         assert bbox.x0 == pytest.approx(0.2)
         assert bbox.top == pytest.approx(0.2)
         assert bbox.x1 == pytest.approx(0.6)
         assert bbox.bottom == pytest.approx(0.4)
 
-    @patch("doc_intelligence.parser.pdfplumber")
+    @patch("doc_intelligence.pdf.parser.pdfplumber")
     def test_multiple_pages(self, mock_pdfplumber):
         pages = [_make_mock_page(), _make_mock_page(), _make_mock_page()]
         mock_pdfplumber.open.return_value = _make_mock_pdf(pages=pages)
@@ -128,9 +129,10 @@ class TestDigitalPDFParser:
         parser = DigitalPDFParser()
         result = parser.parse(PDFDocument(uri="test.pdf"))
 
+        assert result.content is not None
         assert len(result.content.pages) == 3
 
-    @patch("doc_intelligence.parser.pdfplumber")
+    @patch("doc_intelligence.pdf.parser.pdfplumber")
     def test_empty_page(self, mock_pdfplumber):
         page = _make_mock_page(lines=[])
         mock_pdfplumber.open.return_value = _make_mock_pdf(pages=[page])
@@ -138,9 +140,10 @@ class TestDigitalPDFParser:
         parser = DigitalPDFParser()
         result = parser.parse(PDFDocument(uri="test.pdf"))
 
+        assert result.content is not None
         assert result.content.pages[0].lines == []
 
-    @patch("doc_intelligence.parser.pdfplumber")
+    @patch("doc_intelligence.pdf.parser.pdfplumber")
     def test_page_dimensions_preserved(self, mock_pdfplumber):
         page = _make_mock_page(width=612.5, height=792.0)
         mock_pdfplumber.open.return_value = _make_mock_pdf(pages=[page])
@@ -148,10 +151,11 @@ class TestDigitalPDFParser:
         parser = DigitalPDFParser()
         result = parser.parse(PDFDocument(uri="test.pdf"))
 
+        assert result.content is not None
         assert result.content.pages[0].width == 612.5
         assert result.content.pages[0].height == 792.0
 
-    @patch("doc_intelligence.parser.pdfplumber")
+    @patch("doc_intelligence.pdf.parser.pdfplumber")
     def test_line_text_preserved(self, mock_pdfplumber):
         page = _make_mock_page(
             lines=[
@@ -169,9 +173,10 @@ class TestDigitalPDFParser:
         parser = DigitalPDFParser()
         result = parser.parse(PDFDocument(uri="test.pdf"))
 
+        assert result.content is not None
         assert result.content.pages[0].lines[0].text == "Special chars: é à ü"
 
-    @patch("doc_intelligence.parser.pdfplumber")
+    @patch("doc_intelligence.pdf.parser.pdfplumber")
     def test_result_uri_matches_input(self, mock_pdfplumber):
         mock_pdfplumber.open.return_value = _make_mock_pdf()
 
@@ -180,7 +185,7 @@ class TestDigitalPDFParser:
 
         assert result.uri == "/my/document.pdf"
 
-    @patch("doc_intelligence.parser.requests")
+    @patch("doc_intelligence.pdf.parser.requests")
     def test_http_error_propagates(self, mock_requests):
         from requests.exceptions import HTTPError
 

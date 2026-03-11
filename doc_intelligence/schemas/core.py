@@ -28,10 +28,10 @@ class BaseCitation(BaseModel):
 # -------------------------------------
 class Document(BaseModel):
     uri: str
-    content: type[PydanticModel] | None = None
+    content: BaseModel | None = None
     include_citations: bool = True
     extraction_mode: Enum
-    response: type[PydanticModel] | None = None
+    response: BaseModel | None = None
     response_metadata: dict[str, Any] | None = None
 
 

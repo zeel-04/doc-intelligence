@@ -7,7 +7,7 @@ from dotenv import load_dotenv
 from pydantic import BaseModel, create_model
 
 from doc_intelligence.llm import OpenAILLM
-from doc_intelligence.processer import DocumentProcessor
+from doc_intelligence.pdf.processor import DocumentProcessor
 
 load_dotenv()
 
@@ -165,8 +165,9 @@ if extract_disabled:
 # ── Run extraction ───────────────────────────────────────────────────────────
 if extract_btn and pdf_uri:
     # Validate schema JSON
+    schema_dict: dict[str, str] = {}
     try:
-        schema_dict: dict[str, str] = json.loads(schema_json)
+        schema_dict = json.loads(schema_json)
         if not schema_dict:
             st.error("Schema cannot be empty. Add at least one field.")
             st.stop()

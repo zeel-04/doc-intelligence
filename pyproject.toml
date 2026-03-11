@@ -40,12 +40,14 @@ dev = [
 [tool.hatch.build.targets.wheel]
 packages = ["doc_intelligence"]
 
-[tool.ruff.lint]
-select = ["I"]
+[tool.ruff]
 exclude = ["notebooks/"]
 
-[tool.ty.src]
-exclude = ["notebooks/"]
+[tool.ruff.lint]
+select = ["I"]
+
+[tool.pyrefly]
+project_excludes = ["**/*.ipynb"]
 
 [tool.uv.build-backend]
 module-name = "doc_intelligence"

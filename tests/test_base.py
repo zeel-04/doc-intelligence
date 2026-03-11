@@ -13,19 +13,19 @@ from tests.conftest import FakeExtractor, FakeLLM
 class TestBaseClassesNotInstantiable:
     def test_base_parser(self):
         with pytest.raises(TypeError):
-            BaseParser()
+            BaseParser()  # type: ignore[abstract]
 
     def test_base_formatter(self):
         with pytest.raises(TypeError):
-            BaseFormatter()
+            BaseFormatter()  # type: ignore[abstract]
 
     def test_base_llm(self):
         with pytest.raises(TypeError):
-            BaseLLM()
+            BaseLLM()  # type: ignore[abstract]
 
     def test_base_extractor(self, fake_llm: FakeLLM):
         with pytest.raises(TypeError):
-            BaseExtractor(fake_llm)
+            BaseExtractor(fake_llm)  # type: ignore[abstract]
 
 
 # ---------------------------------------------------------------------------
@@ -37,14 +37,14 @@ class TestIncompleteSubclassRaises:
             pass
 
         with pytest.raises(TypeError):
-            BadParser()
+            BadParser()  # type: ignore[abstract]
 
     def test_formatter_missing_format(self):
         class BadFormatter(BaseFormatter):
             pass
 
         with pytest.raises(TypeError):
-            BadFormatter()
+            BadFormatter()  # type: ignore[abstract]
 
     def test_llm_missing_generate_structured_output(self):
         class BadLLM(BaseLLM):
@@ -52,7 +52,7 @@ class TestIncompleteSubclassRaises:
                 return ""
 
         with pytest.raises(TypeError):
-            BadLLM()
+            BadLLM()  # type: ignore[abstract]
 
     def test_llm_missing_generate_text(self):
         class BadLLM(BaseLLM):
@@ -62,14 +62,14 @@ class TestIncompleteSubclassRaises:
                 return None
 
         with pytest.raises(TypeError):
-            BadLLM()
+            BadLLM()  # type: ignore[abstract]
 
     def test_extractor_missing_extract(self, fake_llm: FakeLLM):
         class BadExtractor(BaseExtractor):
             pass
 
         with pytest.raises(TypeError):
-            BadExtractor(fake_llm)
+            BadExtractor(fake_llm)  # type: ignore[abstract]
 
 
 # ---------------------------------------------------------------------------

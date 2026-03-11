@@ -2,9 +2,9 @@
 
 import pytest
 
-from doc_intelligence.formatter import DigitalPDFFormatter
-from doc_intelligence.schemas.pdf import PDF, PDFDocument
-from doc_intelligence.types.pdf import PDFExtractionMode
+from doc_intelligence.pdf.formatter import DigitalPDFFormatter
+from doc_intelligence.pdf.schemas import PDF, PDFDocument
+from doc_intelligence.pdf.types import PDFExtractionMode
 
 
 @pytest.fixture

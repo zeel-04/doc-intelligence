@@ -7,9 +7,9 @@ from unittest.mock import patch
 import pytest
 from pydantic import BaseModel, Field
 
-from doc_intelligence.extractor import DigitalPDFExtractor
-from doc_intelligence.schemas.pdf import PDF, PDFDocument
-from doc_intelligence.types.pdf import PDFExtractionMode
+from doc_intelligence.pdf.extractor import DigitalPDFExtractor
+from doc_intelligence.pdf.schemas import PDF, PDFDocument
+from doc_intelligence.pdf.types import PDFExtractionMode
 from tests.conftest import FakeFormatter, FakeLLM
 
 
@@ -151,6 +151,7 @@ class TestExtractSinglePassWithCitations:
             response_format=SampleResponse,
         )
 
+        assert result is not None
         assert result["extracted_data"].name == "Alice"
         assert result["extracted_data"].age == 30
         assert result["metadata"] is not None
@@ -181,6 +182,7 @@ class TestExtractSinglePassWithCitations:
             response_format=SampleResponse,
         )
 
+        assert result is not None
         metadata = result["metadata"]
         name_cit = metadata["name"]["citations"][0]
         assert "bboxes" in name_cit

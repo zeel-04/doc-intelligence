@@ -188,7 +188,7 @@ def pydantic_to_json_instance_schema(
         >>> schema_no_cite
         {"street": "<string>"}
     """
-    schema = {}
+    schema: dict[str, Any] = {}
 
     for field_name, field_info in model.model_fields.items():
         field_type = field_info.annotation

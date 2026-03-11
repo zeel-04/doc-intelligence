@@ -2,7 +2,7 @@
 
 import pytest
 
-from doc_intelligence.types.pdf import PDFExtractionMode
+from doc_intelligence.pdf.types import PDFExtractionMode
 
 
 # ---------------------------------------------------------------------------

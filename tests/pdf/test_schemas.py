@@ -3,15 +3,15 @@
 import pytest
 from pydantic import ValidationError
 
-from doc_intelligence.schemas.core import BoundingBox
-from doc_intelligence.schemas.pdf import (
+from doc_intelligence.pdf.schemas import (
     PDF,
     Line,
     Page,
     PDFDocument,
     PDFExtractionConfig,
 )
-from doc_intelligence.types.pdf import PDFExtractionMode
+from doc_intelligence.pdf.types import PDFExtractionMode
+from doc_intelligence.schemas.core import BoundingBox
 
 
 # ---------------------------------------------------------------------------

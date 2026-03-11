@@ -5,12 +5,12 @@ from typing import Any
 import pytest
 from pydantic import BaseModel, Field
 
-from doc_intelligence.extractor import DigitalPDFExtractor
-from doc_intelligence.formatter import DigitalPDFFormatter
-from doc_intelligence.parser import DigitalPDFParser
-from doc_intelligence.processer import DocumentProcessor
-from doc_intelligence.schemas.pdf import PDF, PDFDocument
-from doc_intelligence.types.pdf import PDFExtractionMode
+from doc_intelligence.pdf.extractor import DigitalPDFExtractor
+from doc_intelligence.pdf.formatter import DigitalPDFFormatter
+from doc_intelligence.pdf.parser import DigitalPDFParser
+from doc_intelligence.pdf.processor import DocumentProcessor
+from doc_intelligence.pdf.schemas import PDF, PDFDocument
+from doc_intelligence.pdf.types import PDFExtractionMode
 from tests.conftest import (
     FakeExtractor,
     FakeFormatter,
