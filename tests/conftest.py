@@ -59,7 +59,7 @@ class FakeParser(BaseParser):
         self.result = result
         self.call_count = 0
 
-    def parse(self, document: Document) -> PDFDocument:  # type: ignore[override]
+    def parse(self, document: Document) -> PDFDocument:
         self.call_count += 1
         if self.result is not None:
             return self.result  # type: ignore[return-value]
@@ -90,8 +90,8 @@ class FakeExtractor(BaseExtractor):
         extraction_config: dict[str, Any],
         formatter: BaseFormatter,
         response_format: type[PydanticModel],
-    ) -> dict[str, Any] | None:
-        return self.result
+    ) -> dict[str, Any]:
+        return self.result  # type: ignore[return-value]
 
 
 # ---------------------------------------------------------------------------

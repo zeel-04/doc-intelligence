@@ -74,16 +74,41 @@ class TestDigitalPDFFormatter:
         assert "0:" not in result
         assert "First line of text\n" in result
 
-    # -- error cases --------------------------------------------------------
+    # -- multi-pass routing -------------------------------------------------
 
-    def test_multi_pass_raises(self, formatter: DigitalPDFFormatter, sample_pdf: PDF):
+    def test_multi_pass_with_citations_uses_line_numbers(
+        self, formatter: DigitalPDFFormatter, sample_pdf: PDF
+    ):
         doc = PDFDocument(
             uri="test.pdf",
             content=sample_pdf,
+            include_citations=True,
             extraction_mode=PDFExtractionMode.MULTI_PASS,
         )
-        with pytest.raises(NotImplementedError, match="Multi-pass"):
-            formatter.format_document_for_llm(doc)
+        result = formatter.format_document_for_llm(doc)
+        assert "0: First line of text" in result
+
+    def test_multi_pass_without_citations_uses_no_line_numbers(
+        self, formatter: DigitalPDFFormatter, sample_pdf: PDF
+    ):
+        doc = PDFDocument(
+            uri="test.pdf",
+            content=sample_pdf,
+            include_citations=False,
+            extraction_mode=PDFExtractionMode.MULTI_PASS,
+        )
+        result = formatter.format_document_for_llm(doc)
+        assert "First line of text\n" in result
+        assert "0:" not in result
+
+    def test_page_numbers_does_not_mutate_original_document(
+        self, formatter: DigitalPDFFormatter, sample_pdf_document: PDFDocument
+    ):
+        original_page_count = len(sample_pdf_document.content.pages)  # type: ignore[union-attr]
+        formatter.format_document_for_llm(sample_pdf_document, page_numbers=[0])
+        assert len(sample_pdf_document.content.pages) == original_page_count  # type: ignore[union-attr]
+
+    # -- error cases --------------------------------------------------------
 
     def test_none_content_raises(
         self,

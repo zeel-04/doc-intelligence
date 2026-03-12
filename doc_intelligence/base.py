@@ -8,7 +8,7 @@ from .schemas.core import Document, PydanticModel
 
 class BaseParser(ABC):
     @abstractmethod
-    def parse(self, document: Document) -> PydanticModel:
+    def parse(self, document: Document) -> Document:
         pass
 
 
@@ -49,5 +49,5 @@ class BaseExtractor(ABC):
         extraction_config: dict[str, Any],
         formatter: BaseFormatter,
         response_format: type[PydanticModel],
-    ) -> dict[str, Any] | None:
+    ) -> dict[str, Any]:
         pass

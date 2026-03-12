@@ -75,7 +75,7 @@ Generate output in JSON format.
         extraction_config: dict[str, Any],
         formatter: BaseFormatter,
         response_format: type[PydanticModel],
-    ) -> dict[str, Any] | None:
+    ) -> dict[str, Any]:
         if document.extraction_mode == PDFExtractionMode.SINGLE_PASS:
             return self._run_single_pass(
                 document, formatter, response_format, llm_config

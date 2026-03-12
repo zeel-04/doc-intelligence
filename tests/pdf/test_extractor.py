@@ -399,3 +399,109 @@ class TestExtractMultiPass:
                 formatter=FakeFormatter(),
                 response_format=SampleResponse,
             )
+
+
+# ---------------------------------------------------------------------------
+# single-pass vs multi-pass alignment
+# ---------------------------------------------------------------------------
+class TestSinglePassVsMultiPassAlignment:
+    """Both modes must produce identical extracted_data and equivalent metadata.
+
+    The invariant: given the same underlying LLM answers (same field values,
+    same citation pages/lines), single-pass and multi-pass must agree on
+    every field value and every resolved bbox.
+    """
+
+    # Shared citation response used as the LLM answer in both modes.
+    _CITATION_JSON = json.dumps(
+        {
+            "name": {"value": "Alice", "citations": [{"page": 0, "lines": [0]}]},
+            "age": {"value": 30, "citations": [{"page": 0, "lines": [1]}]},
+        }
+    )
+    _PLAIN_JSON = json.dumps({"name": "Alice", "age": 30})
+    _PAGE_MAP_JSON = json.dumps({"name": [0], "age": [0]})
+
+    def _run_single_pass(self, sample_pdf: PDF) -> dict[str, Any]:
+        llm = FakeLLM(text_response=self._CITATION_JSON)
+        extractor = DigitalPDFExtractor(llm=llm)
+        doc = PDFDocument(
+            uri="test.pdf",
+            content=sample_pdf,
+            include_citations=True,
+            extraction_mode=PDFExtractionMode.SINGLE_PASS,
+        )
+        return extractor.extract(  # type: ignore[return-value]
+            document=doc,
+            llm_config={},
+            extraction_config={},
+            formatter=FakeFormatter(),
+            response_format=SampleResponse,
+        )
+
+    def _run_multi_pass(self, sample_pdf: PDF) -> dict[str, Any]:
+        llm = FakeLLM(
+            responses=[self._PLAIN_JSON, self._PAGE_MAP_JSON, self._CITATION_JSON]
+        )
+        extractor = DigitalPDFExtractor(llm=llm)
+        doc = PDFDocument(
+            uri="test.pdf",
+            content=sample_pdf,
+            include_citations=True,
+            extraction_mode=PDFExtractionMode.MULTI_PASS,
+        )
+        return extractor.extract(  # type: ignore[return-value]
+            document=doc,
+            llm_config={},
+            extraction_config={},
+            formatter=FakeFormatter(),
+            response_format=SampleResponse,
+        )
+
+    def test_extracted_data_matches(self, sample_pdf: PDF):
+        sp = self._run_single_pass(sample_pdf)
+        mp = self._run_multi_pass(sample_pdf)
+        assert sp["extracted_data"] == mp["extracted_data"]
+
+    def test_extracted_data_name_matches(self, sample_pdf: PDF):
+        sp = self._run_single_pass(sample_pdf)
+        mp = self._run_multi_pass(sample_pdf)
+        assert sp["extracted_data"].name == mp["extracted_data"].name == "Alice"
+
+    def test_extracted_data_age_matches(self, sample_pdf: PDF):
+        sp = self._run_single_pass(sample_pdf)
+        mp = self._run_multi_pass(sample_pdf)
+        assert sp["extracted_data"].age == mp["extracted_data"].age == 30
+
+    def test_metadata_fields_match(self, sample_pdf: PDF):
+        sp = self._run_single_pass(sample_pdf)
+        mp = self._run_multi_pass(sample_pdf)
+        assert set(sp["metadata"].keys()) == set(mp["metadata"].keys())
+
+    def test_metadata_citation_values_match(self, sample_pdf: PDF):
+        sp = self._run_single_pass(sample_pdf)
+        mp = self._run_multi_pass(sample_pdf)
+        for field in ("name", "age"):
+            assert sp["metadata"][field]["value"] == mp["metadata"][field]["value"], (
+                f"metadata value mismatch for field '{field}'"
+            )
+
+    def test_metadata_bboxes_match(self, sample_pdf: PDF):
+        sp = self._run_single_pass(sample_pdf)
+        mp = self._run_multi_pass(sample_pdf)
+        for field in ("name", "age"):
+            sp_bboxes = sp["metadata"][field]["citations"][0]["bboxes"]
+            mp_bboxes = mp["metadata"][field]["citations"][0]["bboxes"]
+            assert sp_bboxes == mp_bboxes, (
+                f"bbox mismatch for field '{field}': {sp_bboxes} vs {mp_bboxes}"
+            )
+
+    def test_metadata_citation_pages_match(self, sample_pdf: PDF):
+        sp = self._run_single_pass(sample_pdf)
+        mp = self._run_multi_pass(sample_pdf)
+        for field in ("name", "age"):
+            sp_page = sp["metadata"][field]["citations"][0]["page"]
+            mp_page = mp["metadata"][field]["citations"][0]["page"]
+            assert sp_page == mp_page, (
+                f"citation page mismatch for field '{field}': {sp_page} vs {mp_page}"
+            )

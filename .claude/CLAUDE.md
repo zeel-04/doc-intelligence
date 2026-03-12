@@ -70,6 +70,8 @@ uv run ruff format --check .  # format check
 uv run pyrefly check .        # type checking
 ```
 
+- You can use context7 for getting up to date Documentation For libraries.
+
 ## Coding Standards
 
 ### SOLID Principles
