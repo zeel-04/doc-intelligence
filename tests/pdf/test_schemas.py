@@ -119,6 +119,28 @@ class TestPDFDocument:
         with pytest.raises(ValidationError):
             PDFDocument()  # type: ignore[call-arg]
 
+    def test_pass1_result_defaults_none(self):
+        doc = PDFDocument(uri="test.pdf")
+        assert doc.pass1_result is None
+
+    def test_pass2_page_map_defaults_none(self):
+        doc = PDFDocument(uri="test.pdf")
+        assert doc.pass2_page_map is None
+
+    def test_pass1_result_can_be_set(self):
+        from pydantic import BaseModel as BM
+
+        class Dummy(BM):
+            x: int
+
+        doc = PDFDocument(uri="test.pdf", pass1_result=Dummy(x=1))
+        assert doc.pass1_result is not None
+        assert doc.pass1_result.x == 1  # type: ignore[attr-defined]
+
+    def test_pass2_page_map_can_be_set(self):
+        doc = PDFDocument(uri="test.pdf", pass2_page_map={"name": [0, 1], "age": [0]})
+        assert doc.pass2_page_map == {"name": [0, 1], "age": [0]}
+
 
 # ---------------------------------------------------------------------------
 # PDFExtractionConfig

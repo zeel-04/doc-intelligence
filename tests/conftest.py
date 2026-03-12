@@ -15,11 +15,22 @@ from doc_intelligence.schemas.core import BoundingBox, Document, PydanticModel
 # Fake ABC implementations
 # ---------------------------------------------------------------------------
 class FakeLLM(BaseLLM):
-    """A fake LLM that returns canned text responses without making API calls."""
+    """A fake LLM that returns canned text responses without making API calls.
 
-    def __init__(self, text_response: str = '{"name": "test"}'):
+    Pass ``responses`` to cycle through multiple replies in call order.
+    Falls back to ``text_response`` once the list is exhausted.
+    """
+
+    def __init__(
+        self,
+        text_response: str = '{"name": "test"}',
+        responses: list[str] | None = None,
+    ):
         self.text_response = text_response
+        self.responses = responses
+        self._call_index: int = 0
         self.last_call_kwargs: dict[str, Any] = {}
+        self.all_calls: list[dict[str, Any]] = []
 
     def generate_text(
         self,
@@ -27,11 +38,17 @@ class FakeLLM(BaseLLM):
         user_prompt: str,
         **kwargs,
     ) -> str:
-        self.last_call_kwargs = {
+        call_kwargs = {
             "system_prompt": system_prompt,
             "user_prompt": user_prompt,
             **kwargs,
         }
+        self.last_call_kwargs = call_kwargs
+        self.all_calls.append(call_kwargs)
+        if self.responses is not None and self._call_index < len(self.responses):
+            response = self.responses[self._call_index]
+            self._call_index += 1
+            return response
         return self.text_response
 
 

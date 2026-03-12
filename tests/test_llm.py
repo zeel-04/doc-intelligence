@@ -4,6 +4,7 @@ from unittest.mock import MagicMock, patch
 
 import pytest
 
+from doc_intelligence.config import settings
 from doc_intelligence.llm import OpenAILLM
 
 
@@ -47,7 +48,7 @@ class TestGenerateText:
         mock_openai_client.responses.create.return_value = MagicMock(output_text="ok")
         llm.generate_text(system_prompt="sys", user_prompt="usr")
         mock_openai_client.responses.create.assert_called_once_with(
-            model="gpt-5-mini",
+            model=settings.default_llm_model,
             instructions="sys",
             input="usr",
         )
@@ -56,7 +57,7 @@ class TestGenerateText:
         mock_openai_client.responses.create.return_value = MagicMock(output_text="ok")
         llm.generate_text(system_prompt="s", user_prompt="u")
         call_kwargs = mock_openai_client.responses.create.call_args
-        assert call_kwargs.kwargs["model"] == "gpt-5-mini"
+        assert call_kwargs.kwargs["model"] == settings.default_llm_model
 
     def test_custom_model_override(self, llm: OpenAILLM, mock_openai_client):
         mock_openai_client.responses.create.return_value = MagicMock(output_text="ok")

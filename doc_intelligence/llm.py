@@ -5,7 +5,7 @@ from openai import OpenAI
 from tenacity import retry, stop_after_attempt
 
 from .base import BaseLLM
-from .config import config
+from .config import settings
 
 
 class OpenAILLM(BaseLLM):
@@ -19,7 +19,7 @@ class OpenAILLM(BaseLLM):
         user_prompt: str,
         **kwargs,
     ) -> str:
-        model = kwargs.pop("model", config["digital_pdf"]["llm"]["model"])
+        model = kwargs.pop("model", settings.default_llm_model)
         logger.debug(f"OpenAILLM: generate_text: Generating text with model: {model}")
         response = self.client.responses.create(
             model=model,

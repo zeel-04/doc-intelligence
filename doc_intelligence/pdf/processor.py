@@ -8,7 +8,9 @@ from ..base import (
     BaseFormatter,
     BaseParser,
 )
+from ..config import settings
 from ..llm import BaseLLM
+from ..restrictions import check_page_count, check_pdf_size, check_schema_depth
 from ..schemas.core import Document
 from .extractor import DigitalPDFExtractor
 from .formatter import DigitalPDFFormatter
@@ -65,7 +67,7 @@ class DocumentProcessor:
             }
         }
         """
-        # Config Vadidation
+        # Config validation
         for key in config:
             if key not in ["llm_config", "extraction_config", "response_format"]:
                 raise ValueError(f"Invalid key: {key}")
@@ -75,6 +77,10 @@ class DocumentProcessor:
             raise ValueError("Please provide a Pydantic model for the response format")
         if not issubclass(response_format, BaseModel):
             raise ValueError("Response format must be a Pydantic model")
+
+        # Restriction checks — before any expensive work
+        check_pdf_size(self.document.uri, settings.max_pdf_size_mb)
+        check_schema_depth(response_format, settings.max_schema_depth)
 
         llm_config = config.get("llm_config", {})
 
@@ -99,6 +105,10 @@ class DocumentProcessor:
         # Auto-parse and format if not done
         if not self.document.content:
             self.parse()
+
+        # Page count check — requires parsed content
+        if self.document.content and hasattr(self.document.content, "pages"):
+            check_page_count(len(self.document.content.pages), settings.max_pdf_pages)
 
         return self.extractor.extract(
             document=self.document,

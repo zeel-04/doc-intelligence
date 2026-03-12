@@ -324,3 +324,93 @@ class TestExtractConfigApplication:
         proc.extract(config={"response_format": SimpleExtraction})
         assert proc.document.include_citations is True
         assert proc.document.extraction_mode == PDFExtractionMode.SINGLE_PASS
+
+
+# ---------------------------------------------------------------------------
+# extract — restriction checks
+# ---------------------------------------------------------------------------
+class TestExtractRestrictions:
+    """DocumentProcessor.extract() enforces size/page/depth limits."""
+
+    def _make_processor(self, sample_pdf_document, fake_extractor, fake_formatter):
+        return DocumentProcessor(
+            parser=FakeParser(),
+            formatter=fake_formatter,
+            extractor=fake_extractor,
+            document=sample_pdf_document,
+        )
+
+    def test_oversized_pdf_raises(
+        self,
+        sample_pdf_document: PDFDocument,
+        fake_extractor: FakeExtractor,
+        fake_formatter: FakeFormatter,
+    ):
+        from unittest.mock import patch
+
+        proc = self._make_processor(sample_pdf_document, fake_extractor, fake_formatter)
+        with patch("doc_intelligence.restrictions.os.path.isfile", return_value=True):
+            with patch(
+                "doc_intelligence.restrictions.os.path.getsize",
+                return_value=20 * 1024 * 1024,  # 20 MB
+            ):
+                with patch("doc_intelligence.pdf.processor.settings") as mock_settings:
+                    mock_settings.max_pdf_size_mb = 10.0
+                    mock_settings.max_schema_depth = 10
+                    mock_settings.max_pdf_pages = 100
+                    with pytest.raises(ValueError, match="exceeds max size"):
+                        proc.extract(config={"response_format": SimpleExtraction})
+
+    def test_too_many_pages_raises(
+        self,
+        sample_pdf: PDF,
+        fake_formatter: FakeFormatter,
+        fake_llm: FakeLLM,
+    ):
+        from unittest.mock import patch
+
+        # Build a document that's already parsed (has content)
+        doc = PDFDocument(uri="test.pdf", content=sample_pdf)
+        extractor = FakeExtractor(
+            llm=fake_llm,
+            result={
+                "extracted_data": SimpleExtraction(name="a", age=1),
+                "metadata": None,
+            },
+        )
+        proc = DocumentProcessor(
+            parser=FakeParser(),
+            formatter=fake_formatter,
+            extractor=extractor,
+            document=doc,
+        )
+        with patch("doc_intelligence.pdf.processor.settings") as mock_settings:
+            mock_settings.max_pdf_size_mb = 1000.0  # no size limit
+            mock_settings.max_schema_depth = 10
+            mock_settings.max_pdf_pages = 1  # only 1 page allowed; sample has 2
+            with pytest.raises(ValueError, match="pages, limit is"):
+                proc.extract(config={"response_format": SimpleExtraction})
+
+    def test_schema_too_deep_raises(
+        self,
+        sample_pdf_document: PDFDocument,
+        fake_extractor: FakeExtractor,
+        fake_formatter: FakeFormatter,
+    ):
+        from unittest.mock import patch
+
+        from pydantic import BaseModel as BM
+
+        class Inner(BM):
+            val: int
+
+        class Deep(BM):
+            inner: Inner
+
+        proc = self._make_processor(sample_pdf_document, fake_extractor, fake_formatter)
+        with patch("doc_intelligence.pdf.processor.settings") as mock_settings:
+            mock_settings.max_pdf_size_mb = 1000.0
+            mock_settings.max_schema_depth = 0  # depth 1 model → raises
+            mock_settings.max_pdf_pages = 100
+            with pytest.raises(ValueError, match="depth"):
+                proc.extract(config={"response_format": Deep})

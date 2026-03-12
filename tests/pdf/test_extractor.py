@@ -193,15 +193,205 @@ class TestExtractSinglePassWithCitations:
 # extract — multi-pass
 # ---------------------------------------------------------------------------
 class TestExtractMultiPass:
-    def test_multi_pass_raises(self, sample_pdf: PDF):
-        llm = FakeLLM()
-        extractor = DigitalPDFExtractor(llm=llm)
-        doc = PDFDocument(
+    """Three-pass extraction: raw → page grounding → line grounding."""
+
+    def _make_doc(self, sample_pdf: PDF, citations: bool = True) -> PDFDocument:
+        return PDFDocument(
             uri="test.pdf",
             content=sample_pdf,
+            include_citations=citations,
             extraction_mode=PDFExtractionMode.MULTI_PASS,
         )
-        with pytest.raises(NotImplementedError, match="Multi-pass"):
+
+    def test_multi_pass_no_citations_returns_pass1_result(self, sample_pdf: PDF):
+        pass1_json = json.dumps({"name": "Alice", "age": 30})
+        llm = FakeLLM(responses=[pass1_json])
+        extractor = DigitalPDFExtractor(llm=llm)
+
+        result = extractor.extract(
+            document=self._make_doc(sample_pdf, citations=False),
+            llm_config={},
+            extraction_config={},
+            formatter=FakeFormatter(),
+            response_format=SampleResponse,
+        )
+
+        assert isinstance(result["extracted_data"], SampleResponse)
+        assert result["extracted_data"].name == "Alice"
+        assert result["extracted_data"].age == 30
+        assert result["metadata"] is None
+        assert llm._call_index == 1  # only Pass 1 called
+
+    def test_multi_pass_no_citations_stores_pass1_on_document(self, sample_pdf: PDF):
+        pass1_json = json.dumps({"name": "Bob", "age": 25})
+        llm = FakeLLM(responses=[pass1_json])
+        extractor = DigitalPDFExtractor(llm=llm)
+        doc = self._make_doc(sample_pdf, citations=False)
+
+        extractor.extract(
+            document=doc,
+            llm_config={},
+            extraction_config={},
+            formatter=FakeFormatter(),
+            response_format=SampleResponse,
+        )
+
+        assert isinstance(doc.pass1_result, SampleResponse)
+        assert doc.pass1_result.name == "Bob"
+
+    def test_multi_pass_with_citations_calls_llm_three_times(self, sample_pdf: PDF):
+        pass1_json = json.dumps({"name": "Alice", "age": 30})
+        pass2_json = json.dumps({"name": [0], "age": [0]})
+        pass3_json = json.dumps(
+            {
+                "name": {"value": "Alice", "citations": [{"page": 0, "lines": [0]}]},
+                "age": {"value": 30, "citations": [{"page": 0, "lines": [1]}]},
+            }
+        )
+        llm = FakeLLM(responses=[pass1_json, pass2_json, pass3_json])
+        extractor = DigitalPDFExtractor(llm=llm)
+
+        extractor.extract(
+            document=self._make_doc(sample_pdf, citations=True),
+            llm_config={},
+            extraction_config={},
+            formatter=FakeFormatter(),
+            response_format=SampleResponse,
+        )
+
+        assert llm._call_index == 3
+
+    def test_multi_pass_with_citations_returns_correct_extracted_data(
+        self, sample_pdf: PDF
+    ):
+        pass1_json = json.dumps({"name": "Alice", "age": 30})
+        pass2_json = json.dumps({"name": [0], "age": [0]})
+        pass3_json = json.dumps(
+            {
+                "name": {"value": "Alice", "citations": [{"page": 0, "lines": [0]}]},
+                "age": {"value": 30, "citations": [{"page": 0, "lines": [1]}]},
+            }
+        )
+        llm = FakeLLM(responses=[pass1_json, pass2_json, pass3_json])
+        extractor = DigitalPDFExtractor(llm=llm)
+
+        result = extractor.extract(
+            document=self._make_doc(sample_pdf, citations=True),
+            llm_config={},
+            extraction_config={},
+            formatter=FakeFormatter(),
+            response_format=SampleResponse,
+        )
+
+        assert isinstance(result["extracted_data"], SampleResponse)
+        assert result["extracted_data"].name == "Alice"
+        assert result["extracted_data"].age == 30
+
+    def test_multi_pass_with_citations_returns_metadata_with_bboxes(
+        self, sample_pdf: PDF
+    ):
+        pass1_json = json.dumps({"name": "Alice", "age": 30})
+        pass2_json = json.dumps({"name": [0], "age": [0]})
+        pass3_json = json.dumps(
+            {
+                "name": {"value": "Alice", "citations": [{"page": 0, "lines": [0]}]},
+                "age": {"value": 30, "citations": [{"page": 0, "lines": [1]}]},
+            }
+        )
+        llm = FakeLLM(responses=[pass1_json, pass2_json, pass3_json])
+        extractor = DigitalPDFExtractor(llm=llm)
+
+        result = extractor.extract(
+            document=self._make_doc(sample_pdf, citations=True),
+            llm_config={},
+            extraction_config={},
+            formatter=FakeFormatter(),
+            response_format=SampleResponse,
+        )
+
+        assert result["metadata"] is not None
+        assert "bboxes" in str(result["metadata"])
+
+    def test_multi_pass_stores_pass2_page_map_on_document(self, sample_pdf: PDF):
+        pass1_json = json.dumps({"name": "Alice", "age": 30})
+        pass2_json = json.dumps({"name": [0], "age": [1]})
+        pass3_json = json.dumps(
+            {
+                "name": {"value": "Alice", "citations": [{"page": 0, "lines": [0]}]},
+                "age": {"value": 30, "citations": [{"page": 1, "lines": [0]}]},
+            }
+        )
+        llm = FakeLLM(responses=[pass1_json, pass2_json, pass3_json])
+        extractor = DigitalPDFExtractor(llm=llm)
+        doc = self._make_doc(sample_pdf, citations=True)
+
+        extractor.extract(
+            document=doc,
+            llm_config={},
+            extraction_config={},
+            formatter=FakeFormatter(),
+            response_format=SampleResponse,
+        )
+
+        assert doc.pass2_page_map == {"name": [0], "age": [1]}
+
+    def test_multi_pass_pass1_prompt_has_no_citation_schema(self, sample_pdf: PDF):
+        pass1_json = json.dumps({"name": "Alice", "age": 30})
+        pass2_json = json.dumps({"name": [0], "age": [0]})
+        pass3_json = json.dumps(
+            {
+                "name": {"value": "Alice", "citations": [{"page": 0, "lines": [0]}]},
+                "age": {"value": 30, "citations": [{"page": 0, "lines": [1]}]},
+            }
+        )
+        llm = FakeLLM(responses=[pass1_json, pass2_json, pass3_json])
+        extractor = DigitalPDFExtractor(llm=llm)
+
+        extractor.extract(
+            document=self._make_doc(sample_pdf, citations=True),
+            llm_config={},
+            extraction_config={},
+            formatter=FakeFormatter(),
+            response_format=SampleResponse,
+        )
+
+        # Pass 1 prompt must NOT contain citation wrapper keys
+        pass1_prompt = llm.all_calls[0]["user_prompt"]
+        assert "citations" not in pass1_prompt.lower()
+
+    def test_multi_pass_pass3_prompt_contains_pass1_answer(self, sample_pdf: PDF):
+        pass1_json = json.dumps({"name": "Alice", "age": 30})
+        pass2_json = json.dumps({"name": [0], "age": [0]})
+        pass3_json = json.dumps(
+            {
+                "name": {"value": "Alice", "citations": [{"page": 0, "lines": [0]}]},
+                "age": {"value": 30, "citations": [{"page": 0, "lines": [1]}]},
+            }
+        )
+        llm = FakeLLM(responses=[pass1_json, pass2_json, pass3_json])
+        extractor = DigitalPDFExtractor(llm=llm)
+
+        extractor.extract(
+            document=self._make_doc(sample_pdf, citations=True),
+            llm_config={},
+            extraction_config={},
+            formatter=FakeFormatter(),
+            response_format=SampleResponse,
+        )
+
+        pass3_prompt = llm.all_calls[2]["user_prompt"]
+        assert "Alice" in pass3_prompt
+
+    def test_multi_pass_invalid_mode_raises(self, sample_pdf: PDF):
+        """Unsupported extraction_mode still raises ValueError."""
+        from unittest.mock import MagicMock
+
+        llm = FakeLLM()
+        extractor = DigitalPDFExtractor(llm=llm)
+        doc = PDFDocument(uri="test.pdf", content=sample_pdf)
+        doc.extraction_mode = MagicMock()  # not a real PDFExtractionMode
+
+        with pytest.raises(ValueError, match="Unsupported extraction mode"):
             extractor.extract(
                 document=doc,
                 llm_config={},
