@@ -44,10 +44,11 @@ tests/                    # Mirrors doc_intelligence/ structure exactly
 ## Workflow
 
 1. **Plan first.** Before writing code, outline the steps. Ask for clarification on ambiguous trade-offs.
-2. **One step at a time.** Implement and verify each step before moving on.
+2. **One step at a time.** Implement and verify each step by writing relevant test if not already, before moving on.
 3. **Verify after every step.** Run `uv run pytest tests/` and `ruff check` + `ruff format --check` after each change.
 4. **Never leave the codebase broken** between steps.
-5. **Bump spec versions after every code change.** After any modification to the codebase, increment the minor version (e.g. `1.1` → `1.2`) in both `specs/prd.md` and `specs/engineering_design.md`. Do this automatically — never wait to be asked.
+5. **Bump spec versions after every spec change** After any modification to the codebase if it requires to change plan, then, increment the minor version (e.g. `1.1` → `1.2`) in both `specs/prd.md` and `specs/engineering_design.md`. Do this automatically — never wait to be asked.
+6. **Ping me if CLAUDE.md needs to be updated** If during code modifications/planning if there's anything worth adding/updating/deleting from CLAUDE.md then propose me with a summarized pros & cons.
 
 ## Tooling
 
