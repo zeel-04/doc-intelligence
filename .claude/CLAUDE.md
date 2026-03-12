@@ -47,6 +47,7 @@ tests/                    # Mirrors doc_intelligence/ structure exactly
 2. **One step at a time.** Implement and verify each step before moving on.
 3. **Verify after every step.** Run `uv run pytest tests/` and `ruff check` + `ruff format --check` after each change.
 4. **Never leave the codebase broken** between steps.
+5. **Bump spec versions after every code change.** After any modification to the codebase, increment the minor version (e.g. `1.1` → `1.2`) in both `specs/prd.md` and `specs/engineering_design.md`. Do this automatically — never wait to be asked.
 
 ## Tooling
 

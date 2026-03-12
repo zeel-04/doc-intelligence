@@ -3,7 +3,6 @@
 from unittest.mock import MagicMock, patch
 
 import pytest
-from pydantic import BaseModel
 
 from doc_intelligence.llm import OpenAILLM
 
@@ -88,76 +87,3 @@ class TestGenerateText:
         with pytest.raises(RetryError):
             llm.generate_text(system_prompt="s", user_prompt="u")
         assert mock_openai_client.responses.create.call_count == 3
-
-
-# ---------------------------------------------------------------------------
-# generate_structured_output
-# ---------------------------------------------------------------------------
-class TestGenerateStructuredOutput:
-    def test_returns_output_parsed(self, llm: OpenAILLM, mock_openai_client):
-        class MyModel(BaseModel):
-            name: str
-
-        expected = MyModel(name="Alice")
-        mock_openai_client.responses.parse.return_value = MagicMock(
-            output_parsed=expected
-        )
-
-        result = llm.generate_structured_output(
-            model="gpt-5-mini",
-            messages=[{"role": "user", "content": "hi"}],
-            reasoning=None,
-            output_format=MyModel,
-        )
-        assert result == expected
-
-    def test_calls_parse_with_correct_args(self, llm: OpenAILLM, mock_openai_client):
-        class MyModel(BaseModel):
-            name: str
-
-        mock_openai_client.responses.parse.return_value = MagicMock(output_parsed=None)
-        messages = [{"role": "user", "content": "hi"}]
-        llm.generate_structured_output(
-            model="gpt-5-mini",
-            messages=messages,
-            reasoning={"effort": "high"},
-            output_format=MyModel,
-        )
-        mock_openai_client.responses.parse.assert_called_once_with(
-            model="gpt-5-mini",
-            input=messages,
-            reasoning={"effort": "high"},
-            text=None,
-            text_format=MyModel,
-        )
-
-    def test_openai_text_forwarded(self, llm: OpenAILLM, mock_openai_client):
-        class MyModel(BaseModel):
-            name: str
-
-        mock_openai_client.responses.parse.return_value = MagicMock(output_parsed=None)
-        text_config = {"format": {"type": "json_schema"}}
-        llm.generate_structured_output(
-            model="gpt-5-mini",
-            messages=[],
-            reasoning=None,
-            output_format=MyModel,
-            openai_text=text_config,
-        )
-        call_kwargs = mock_openai_client.responses.parse.call_args
-        assert call_kwargs.kwargs["text"] == text_config
-
-    def test_openai_text_none_sends_none(self, llm: OpenAILLM, mock_openai_client):
-        class MyModel(BaseModel):
-            name: str
-
-        mock_openai_client.responses.parse.return_value = MagicMock(output_parsed=None)
-        llm.generate_structured_output(
-            model="gpt-5-mini",
-            messages=[],
-            reasoning=None,
-            output_format=MyModel,
-            openai_text=None,
-        )
-        call_kwargs = mock_openai_client.responses.parse.call_args
-        assert call_kwargs.kwargs["text"] is None

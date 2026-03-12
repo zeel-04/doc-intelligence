@@ -46,20 +46,9 @@ class TestIncompleteSubclassRaises:
         with pytest.raises(TypeError):
             BadFormatter()  # type: ignore[abstract]
 
-    def test_llm_missing_generate_structured_output(self):
-        class BadLLM(BaseLLM):
-            def generate_text(self, system_prompt, user_prompt, **kwargs):
-                return ""
-
-        with pytest.raises(TypeError):
-            BadLLM()  # type: ignore[abstract]
-
     def test_llm_missing_generate_text(self):
         class BadLLM(BaseLLM):
-            def generate_structured_output(
-                self, model, messages, reasoning, output_format, openai_text=None
-            ):
-                return None
+            pass
 
         with pytest.raises(TypeError):
             BadLLM()  # type: ignore[abstract]

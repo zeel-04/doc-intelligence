@@ -20,16 +20,31 @@
         "Bash(pytest *)",
         "Bash(ruff check *)",
         "Bash(ruff format *)",
-        "Bash(mypy *)",
+        "Bash(pyrefly *)",
         "Bash(tree *)",
         "Bash(cat *)",
-        "Bash(mkdir *)"
+        "Bash(ls *)",
+        "Bash(ls)",
+        "Bash(pwd)",
+        "Bash(echo *)",
+        "Bash(which *)",
+        "Bash(whoami)",
+        "Bash(date *)",
+        "Bash(wc *)",
+        "Bash(head *)",
+        "Bash(tail *)",
+        "Bash(sort *)",
+        "Bash(uniq *)",
+        "Bash(cut *)",
+        "Bash(grep *)"
       ],
       "deny": [
         "Bash(git push *)",
         "Bash(uv publish *)",
         "Read(**/.env)",
-        "Read(**/.env.*)"
+        "Read(**/.env.*)",
+        "Edit(**/.env)",
+        "Edit(**/.env.*)"
       ]
     }
 }

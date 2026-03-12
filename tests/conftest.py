@@ -21,16 +21,6 @@ class FakeLLM(BaseLLM):
         self.text_response = text_response
         self.last_call_kwargs: dict[str, Any] = {}
 
-    def generate_structured_output(
-        self,
-        model: str,
-        messages: list[dict[str, str]],
-        reasoning: Any,
-        output_format: type[PydanticModel],
-        openai_text: dict[str, Any] | None = None,
-    ) -> PydanticModel | None:
-        return None
-
     def generate_text(
         self,
         system_prompt: str,

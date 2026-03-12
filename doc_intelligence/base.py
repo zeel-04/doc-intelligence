@@ -24,17 +24,6 @@ class BaseFormatter(ABC):
 
 class BaseLLM(ABC):
     @abstractmethod
-    def generate_structured_output(
-        self,
-        model: str,
-        messages: list[dict[str, str]],
-        reasoning: Any,
-        output_format: type[PydanticModel],
-        openai_text: dict[str, Any] | None = None,
-    ) -> PydanticModel | None:
-        pass
-
-    @abstractmethod
     def generate_text(
         self,
         system_prompt: str,

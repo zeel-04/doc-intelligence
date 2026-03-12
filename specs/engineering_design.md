@@ -1,6 +1,6 @@
 # Engineering Design Document — doc_intelligence
 
-**Version:** 1.0
+**Version:** 1.1
 **Status:** Living document
 **Last updated:** 2026-03-11
 
@@ -91,8 +91,8 @@ class DocIntelligenceConfig(BaseSettings):
     default_llm_model: str = "gpt-4o-mini"
 
     # Limits
-    max_pdf_size_mb: float = Field(default=500.0)
-    max_pdf_pages: int = Field(default=500)
+    max_pdf_size_mb: float = Field(default=10.0)
+    max_pdf_pages: int = Field(default=100)
     max_schema_depth: int = Field(default=5)
 
     # Async (used in Phase 4, declared here for single source of truth)
@@ -181,15 +181,17 @@ The final `extract()` return shape is unchanged: `{"extracted_data": …, "metad
 
 ### 1.5 Files changed / created
 
-| File | Change |
-|---|---|
-| `doc_intelligence/config.py` | Rewrite with `pydantic-settings` |
-| `doc_intelligence/restrictions.py` | New — limit validators |
+
+| File                                | Change                                                |
+| ----------------------------------- | ----------------------------------------------------- |
+| `doc_intelligence/config.py`        | Rewrite with `pydantic-settings`                      |
+| `doc_intelligence/restrictions.py`  | New — limit validators                                |
 | `doc_intelligence/pdf/extractor.py` | Add `_extract_pass1/2/3`, implement MULTI_PASS branch |
-| `doc_intelligence/pdf/schemas.py` | Add `pass1_result`, `pass2_page_map` to `PDFDocument` |
-| `doc_intelligence/pdf/processor.py` | Call restriction checks at top of `extract()` |
-| `tests/test_restrictions.py` | New |
-| `tests/pdf/test_extractor.py` | Add multi-pass tests |
+| `doc_intelligence/pdf/schemas.py`   | Add `pass1_result`, `pass2_page_map` to `PDFDocument` |
+| `doc_intelligence/pdf/processor.py` | Call restriction checks at top of `extract()`         |
+| `tests/test_restrictions.py`        | New                                                   |
+| `tests/pdf/test_extractor.py`       | Add multi-pass tests                                  |
+
 
 ---
 
@@ -285,11 +287,13 @@ class GeminiLLM(BaseLLM):
 
 ### 2.6 Files changed / created
 
-| File | Change |
-|---|---|
-| `doc_intelligence/base.py` | Make `generate_structured_output` non-abstract with `NotImplementedError` default |
-| `doc_intelligence/llm.py` | Add `OllamaLLM`, `AnthropicLLM`, `GeminiLLM` (or split into `doc_intelligence/llms/`) |
-| `tests/test_llm.py` | Add tests for all three providers (using mocks) |
+
+| File                       | Change                                                                                |
+| -------------------------- | ------------------------------------------------------------------------------------- |
+| `doc_intelligence/base.py` | Make `generate_structured_output` non-abstract with `NotImplementedError` default     |
+| `doc_intelligence/llm.py`  | Add `OllamaLLM`, `AnthropicLLM`, `GeminiLLM` (or split into `doc_intelligence/llms/`) |
+| `tests/test_llm.py`        | Add tests for all three providers (using mocks)                                       |
+
 
 > **Note on file organisation:** If `llm.py` grows past ~150 lines, split into `doc_intelligence/llms/__init__.py`, `openai.py`, `ollama.py`, `anthropic.py`, `gemini.py`.
 
@@ -310,15 +314,17 @@ class GeminiLLM(BaseLLM):
 
 The existing digital components keep their names. New OCR components are named to be explicit:
 
-| Component | Digital (existing) | Scanned (new) |
-|---|---|---|
-| Parser | `DigitalPDFParser` | `ScannedPDFParser` |
-| Layout detector | — | `BaseLayoutDetector` (ABC) + `PaddleLayoutDetector` |
-| OCR engine | — | `BaseOCREngine` (ABC) + `PaddleOCREngine` |
-| Formatter | `DigitalPDFFormatter` | *reused as-is* |
-| Extractor | `DigitalPDFExtractor` | *reused as-is* |
-| Processor factory | `DocumentProcessor.from_digital_pdf()` | `DocumentProcessor.from_scanned_pdf()` |
 
+| Component         | Digital (existing)                     | Scanned (new)                                       |
+| ----------------- | -------------------------------------- | --------------------------------------------------- |
+| Parser            | `DigitalPDFParser`                     | `ScannedPDFParser`                                  |
+| Layout detector   | —                                      | `BaseLayoutDetector` (ABC) + `PaddleLayoutDetector` |
+| OCR engine        | —                                      | `BaseOCREngine` (ABC) + `PaddleOCREngine`           |
+| Formatter         | `DigitalPDFFormatter`                  | *reused as-is*                                      |
+| Extractor         | `DigitalPDFExtractor`                  | *reused as-is*                                      |
+| Processor factory | `DocumentProcessor.from_digital_pdf()` | `DocumentProcessor.from_scanned_pdf()`              |
+
+> Note: When Reusing formatter and extractor, consider renaming the prefix from digital to generalized naming.
 ---
 
 ### 3.3 New abstract base classes
@@ -467,16 +473,18 @@ def from_scanned_pdf(
 
 ### 3.8 Files changed / created
 
-| File | Change |
-|---|---|
-| `doc_intelligence/ocr/__init__.py` | New package |
-| `doc_intelligence/ocr/base.py` | New — `BaseLayoutDetector`, `BaseOCREngine` |
-| `doc_intelligence/ocr/paddle.py` | New — `PaddleLayoutDetector`, `PaddleOCREngine` |
-| `doc_intelligence/pdf/ocr_parser.py` | New — `ScannedPDFParser` |
-| `doc_intelligence/pdf/processor.py` | Add `from_scanned_pdf()` factory |
-| `tests/ocr/test_base.py` | New |
-| `tests/ocr/test_paddle.py` | New (mocked PaddleOCR) |
-| `tests/pdf/test_ocr_parser.py` | New |
+
+| File                                 | Change                                          |
+| ------------------------------------ | ----------------------------------------------- |
+| `doc_intelligence/ocr/__init__.py`   | New package                                     |
+| `doc_intelligence/ocr/base.py`       | New — `BaseLayoutDetector`, `BaseOCREngine`     |
+| `doc_intelligence/ocr/paddle.py`     | New — `PaddleLayoutDetector`, `PaddleOCREngine` |
+| `doc_intelligence/pdf/ocr_parser.py` | New — `ScannedPDFParser`                        |
+| `doc_intelligence/pdf/processor.py`  | Add `from_scanned_pdf()` factory                |
+| `tests/ocr/test_base.py`             | New                                             |
+| `tests/ocr/test_paddle.py`           | New (mocked PaddleOCR)                          |
+| `tests/pdf/test_ocr_parser.py`       | New                                             |
+
 
 ---
 
@@ -605,14 +613,16 @@ The callback is fire-and-forget (`asyncio.create_task`) so a slow callback canno
 
 ### 4.6 Files changed / created
 
-| File | Change |
-|---|---|
-| `doc_intelligence/base.py` | Add `agenerate_text` default to `BaseLLM` |
-| `doc_intelligence/llm.py` | Override `agenerate_text` in `OpenAILLM`, `AnthropicLLM` with native async |
-| `doc_intelligence/pdf/async_processor.py` | New — `AsyncDocumentProcessor` |
-| `doc_intelligence/batch.py` | New — `batch_extract` |
-| `tests/pdf/test_async_processor.py` | New |
-| `tests/test_batch.py` | New |
+
+| File                                      | Change                                                                     |
+| ----------------------------------------- | -------------------------------------------------------------------------- |
+| `doc_intelligence/base.py`                | Add `agenerate_text` default to `BaseLLM`                                  |
+| `doc_intelligence/llm.py`                 | Override `agenerate_text` in `OpenAILLM`, `AnthropicLLM` with native async |
+| `doc_intelligence/pdf/async_processor.py` | New — `AsyncDocumentProcessor`                                             |
+| `doc_intelligence/batch.py`               | New — `batch_extract`                                                      |
+| `tests/pdf/test_async_processor.py`       | New                                                                        |
+| `tests/test_batch.py`                     | New                                                                        |
+
 
 ---
 
@@ -634,16 +644,19 @@ This keeps the base install small. A user who only needs OpenAI + digital PDFs d
 
 ### Error taxonomy
 
-| Situation | Exception |
-|---|---|
-| File too large | `ValueError: PDF exceeds max size (…MB > …MB)` |
-| Too many pages | `ValueError: PDF has … pages, limit is …` |
-| Schema too deep | `ValueError: Schema depth … exceeds limit …` |
-| LLM parse failure (after retries) | `ExtractionError` (custom, Phase 1+) |
-| OCR engine failure | `OCRError` (custom, Phase 3+) |
+
+| Situation                         | Exception                                      |
+| --------------------------------- | ---------------------------------------------- |
+| File too large                    | `ValueError: PDF exceeds max size (…MB > …MB)` |
+| Too many pages                    | `ValueError: PDF has … pages, limit is …`      |
+| Schema too deep                   | `ValueError: Schema depth … exceeds limit …`   |
+| LLM parse failure (after retries) | `ExtractionError` (custom, Phase 1+)           |
+| OCR engine failure                | `OCRError` (custom, Phase 3+)                  |
+
 
 ### Testing conventions (unchanged from baseline)
 
 - Mirror structure: `tests/ocr/`, `tests/pdf/test_async_processor.py`, etc.
 - All OCR and LLM calls are mocked; no network in unit tests.
 - 100% coverage target on all new modules.
+
