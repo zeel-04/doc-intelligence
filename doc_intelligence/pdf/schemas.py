@@ -22,7 +22,7 @@ class PDF(BaseModel):
 
 
 class PDFDocument(Document):
-    content: PDF | None = None  # type: ignore[override]
+    content: PDF | None = None
     extraction_mode: Enum = PDFExtractionMode.SINGLE_PASS
 
 

@@ -13,7 +13,7 @@ from .schemas import PDF, BoundingBox, Line, Page, PDFDocument
 
 class PDFParser(BaseParser):
     @abstractmethod
-    def parse(self, document: Document) -> PDFDocument:  # type: ignore[override]
+    def parse(self, document: Document) -> PDFDocument:
         pass
 
 
