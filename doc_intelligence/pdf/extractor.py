@@ -2,15 +2,16 @@ from typing import Any
 
 from loguru import logger
 
-from .base import BaseExtractor, BaseFormatter
-from .llm import BaseLLM
-from .pydantic_to_json_instance_schema import (
+from ..base import BaseExtractor, BaseFormatter
+from ..llm import BaseLLM
+from ..pydantic_to_json_instance_schema import (
     pydantic_to_json_instance_schema,
     stringify_schema,
 )
-from .schemas.core import Document, PydanticModel
-from .types.pdf import PDFExtractionMode
-from .utils import enrich_citations_with_bboxes, strip_citations
+from ..schemas.core import Document, PydanticModel
+from ..utils import strip_citations
+from .types import PDFExtractionMode
+from .utils import enrich_citations_with_bboxes
 
 
 class DigitalPDFExtractor(BaseExtractor):
@@ -61,9 +62,10 @@ Generate output in JSON format.
                 user_prompt=user_prompt,
                 **llm_config,
             )
-
-        if document.extraction_mode == PDFExtractionMode.MULTI_PASS:
+        elif document.extraction_mode == PDFExtractionMode.MULTI_PASS:
             raise NotImplementedError("Multi-pass extraction is not implemented yet")
+        else:
+            raise ValueError(f"Unsupported extraction mode: {document.extraction_mode}")
 
         response_dict = self.json_parser.parse(response)
 

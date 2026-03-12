@@ -1,20 +1,20 @@
-from typing import Any, Literal
+from typing import Any
 
 from loguru import logger
 from pydantic import BaseModel
 
-from .base import (
+from ..base import (
     BaseExtractor,
     BaseFormatter,
     BaseParser,
 )
+from ..llm import BaseLLM
+from ..schemas.core import Document
 from .extractor import DigitalPDFExtractor
 from .formatter import DigitalPDFFormatter
-from .llm import BaseLLM
 from .parser import DigitalPDFParser
-from .schemas.core import Document
-from .schemas.pdf import PDF, PDFDocument, PDFExtractionConfig
-from .types.pdf import PDFExtractionMode
+from .schemas import PDF, PDFDocument, PDFExtractionConfig
+from .types import PDFExtractionMode
 
 
 class DocumentProcessor:

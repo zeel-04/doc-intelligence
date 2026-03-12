@@ -1,0 +1,63 @@
+---
+description: Testing conventions — folder mirroring and pytest patterns
+globs: "tests/**/*.py"
+alwaysApply: false
+---
+
+# Testing Conventions
+
+## Folder Structure — Mirror the Source Package
+
+Tests must mirror the `doc_intelligence/` package structure inside `tests/`, with each test file prefixed by `test_`.
+
+When adding a new source module, always create the corresponding test file in the mirrored location.
+
+## Test Organization
+
+- Group related tests into **classes** named `Test<Topic>` (e.g., `TestGetTypeString`, `TestSchemaWithCitation`).
+- Prefix every test method with `test_` (pytest discovery).
+- Use section separators to visually group test classes:
+
+```python
+# ---------------------------------------------------------------------------
+# get_type_string
+# ---------------------------------------------------------------------------
+class TestGetTypeString:
+    def test_basic_types(self, ...): ...
+    def test_optional_unwraps(self): ...
+```
+
+## Pytest Patterns
+
+- Use `@pytest.mark.parametrize` for data-driven tests over multiple inputs.
+- Define **shared test fixtures and models** at the top of the test file, before the first test class.
+- Import from the source package using absolute imports: `from doc_intelligence.utils import ...`
+- Use `pytest.raises` for expected exceptions.
+
+```python
+@pytest.mark.parametrize(
+    "field_type, expected",
+    [
+        (str, "string"),
+        (int, "integer"),
+        (float, "number"),
+    ],
+)
+def test_basic_types(self, field_type, expected):
+    assert get_type_string(field_type) == expected
+```
+
+## Test Quality
+
+- Each test should verify **one behavior** — keep assertions focused.
+- Name tests descriptively: `test_optional_unwraps`, `test_deep_nesting`, `test_citation_level_line`.
+- Avoid testing implementation details; test public API contracts.
+- Add a module-level docstring: `"""Tests for <module_name> module."""`
+
+## Running Tests
+
+```bash
+uv run pytest tests/               # all tests
+uv run pytest tests/test_utils.py   # single module
+uv run pytest -k "TestSchemaWith"   # by pattern
+```

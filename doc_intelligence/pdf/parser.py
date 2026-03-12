@@ -5,10 +5,10 @@ from urllib.parse import urlparse
 import pdfplumber
 import requests
 
-from .base import BaseParser
-from .schemas.core import Document
-from .schemas.pdf import PDF, BoundingBox, Line, Page, PDFDocument
-from .utils import normalize_bounding_box
+from ..base import BaseParser
+from ..schemas.core import Document
+from ..utils import normalize_bounding_box
+from .schemas import PDF, BoundingBox, Line, Page, PDFDocument
 
 
 class PDFParser(BaseParser):

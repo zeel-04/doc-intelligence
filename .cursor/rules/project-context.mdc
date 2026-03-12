@@ -1,0 +1,33 @@
+---
+description: Project context and architecture for Document AI
+alwaysApply: true
+---
+
+# Document AI — Project Context
+
+## Overview
+
+Document AI (`doc_intelligence`) is a library for building AI-powered document processing pipelines with structured data extraction and citation support. It parses PDFs, formats content for LLMs, and extracts structured data using Pydantic models.
+
+## AI Coding Workflow
+
+1. **Plan first, implement second.** Before writing any code, outline the steps needed to complete the task. If the task is ambiguous or has meaningful trade-offs, ask the human for clarification before proceeding.
+2. **Work step by step.** Implement one step at a time from the plan. Do not jump ahead or batch unrelated changes together.
+3. **Verify after every step.** After each step, run `uv run pytest tests/` and confirm all tests pass and the code is clean (`ruff check`, `ruff format --check`). Fix any failures before moving to the next step.
+4. **Keep changes small and reviewable.** Each step should produce a self-contained, working state. Never leave the codebase in a broken state between steps.
+
+## Tooling
+
+- **uv** — Dependency management
+- **hatchling** — Build backend
+- **ruff** — Linting and formatting
+- **pyrefly** — Type checking
+- **pytest** — Testing
+- **pre-commit** — Git hooks (ruff + pyrefly)
+- **mkdocs-material** — Documentation site
+
+## Test Coverage
+
+- Target **100% code coverage**. Every public function, branch, and edge case in `doc_intelligence/` must have a corresponding test.
+- All tests must pass before any change is considered complete. Run `uv run pytest tests/` to verify.
+- When adding or modifying source code, always add or update the corresponding tests in the mirrored `tests/` structure.

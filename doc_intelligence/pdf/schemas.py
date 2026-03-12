@@ -2,8 +2,8 @@ from enum import Enum
 
 from pydantic import BaseModel, Field
 
-from ..types.pdf import PDFExtractionMode
-from .core import BoundingBox, Document, ExtractionConfig
+from ..schemas.core import BoundingBox, Document, ExtractionConfig
+from .types import PDFExtractionMode
 
 
 class Line(BaseModel):

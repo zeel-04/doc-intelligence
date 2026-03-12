@@ -9,7 +9,7 @@
     },
     "ruff.enable": true,
     "ruff.organizeImports": true,
-    "ruff.fixAll": true
+    "ruff.fixAll": true,
   }
   
   
