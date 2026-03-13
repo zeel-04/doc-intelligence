@@ -23,7 +23,7 @@ doc_intelligence/
 ├── extract.py              # extract() — top-level one-liner convenience function wrapping PDFProcessor
 ├── restrictions.py         # check_pdf_size(), check_page_count(), check_schema_depth() — hard-limit validators
 ├── config.py               # DocIntelligenceConfig — per-provider default models, size/page/depth limits, async settings
-├── utils.py                # normalize/denormalize bounding boxes, strip_citations, find_citation_fields, etc.
+├── utils.py                # normalize_bounding_box, strip_citations — bbox transforms and citation stripping
 └── pydantic_to_json_instance_schema.py  # Convert Pydantic models to JSON instance schemas with citation wrappers
 
 tests/                      # Mirrors doc_intelligence/ structure exactly
@@ -106,6 +106,9 @@ uv run pyrefly check .        # type checking
 
 - Always use absolute imports.
 - Update @docs/ and @README.md if API level changes are made.
+- Use proper docstrings
+  - Functions and classes where required
+  - Module level
 
 ## Testing Conventions
 
