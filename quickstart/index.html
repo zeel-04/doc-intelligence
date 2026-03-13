@@ -655,7 +655,7 @@
 <h2 id="requirements">Requirements</h2>
 <ul>
 <li>Python &gt;= 3.10</li>
-<li>OpenAI API key</li>
+<li>An API key for your chosen LLM provider (OpenAI, Anthropic, or Gemini) — or a local Ollama server</li>
 </ul>
 <h3 id="install-with-uv">Install with uv</h3>
 <div class="highlight"><pre><span></span><code><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a>uv<span class="w"> </span>pip<span class="w"> </span>install<span class="w"> </span>doc-intelligence
@@ -664,97 +664,89 @@
 <div class="highlight"><pre><span></span><code><a id="__codelineno-1-1" name="__codelineno-1-1" href="#__codelineno-1-1"></a>pip<span class="w"> </span>install<span class="w"> </span>doc-intelligence
 </code></pre></div>
 <h2 id="environment-setup">Environment Setup</h2>
-<p>Document AI uses OpenAI's API for document processing. Set up your API key:</p>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-2-1" name="__codelineno-2-1" href="#__codelineno-2-1"></a><span class="c1"># Create a .env file</span>
+<p>Document AI supports multiple LLM providers. Set up your API key for your chosen provider:</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-2-1" name="__codelineno-2-1" href="#__codelineno-2-1"></a><span class="c1"># OpenAI</span>
 <a id="__codelineno-2-2" name="__codelineno-2-2" href="#__codelineno-2-2"></a><span class="nb">echo</span><span class="w"> </span><span class="s2">&quot;OPENAI_API_KEY=your-api-key-here&quot;</span><span class="w"> </span>&gt;<span class="w"> </span>.env
+<a id="__codelineno-2-3" name="__codelineno-2-3" href="#__codelineno-2-3"></a>
+<a id="__codelineno-2-4" name="__codelineno-2-4" href="#__codelineno-2-4"></a><span class="c1"># Or Anthropic</span>
+<a id="__codelineno-2-5" name="__codelineno-2-5" href="#__codelineno-2-5"></a><span class="nb">echo</span><span class="w"> </span><span class="s2">&quot;ANTHROPIC_API_KEY=your-api-key-here&quot;</span><span class="w"> </span>&gt;<span class="w"> </span>.env
+<a id="__codelineno-2-6" name="__codelineno-2-6" href="#__codelineno-2-6"></a>
+<a id="__codelineno-2-7" name="__codelineno-2-7" href="#__codelineno-2-7"></a><span class="c1"># Or Gemini</span>
+<a id="__codelineno-2-8" name="__codelineno-2-8" href="#__codelineno-2-8"></a><span class="nb">echo</span><span class="w"> </span><span class="s2">&quot;GOOGLE_API_KEY=your-api-key-here&quot;</span><span class="w"> </span>&gt;<span class="w"> </span>.env
 </code></pre></div>
 <h2 id="basic-usage">Basic Usage</h2>
 <p>Here's a simple example to extract structured data from a PDF document.</p>
 <h3 id="processing-pdfs-from-urls-or-local-files">Processing PDFs from URLs or Local Files</h3>
 <p>Document AI supports both local file paths and URLs:</p>
 <div class="highlight"><pre><span></span><code><a id="__codelineno-3-1" name="__codelineno-3-1" href="#__codelineno-3-1"></a><span class="kn">from</span><span class="w"> </span><span class="nn">dotenv</span><span class="w"> </span><span class="kn">import</span> <span class="n">load_dotenv</span>
-<a id="__codelineno-3-2" name="__codelineno-3-2" href="#__codelineno-3-2"></a><span class="kn">from</span><span class="w"> </span><span class="nn">doc_intelligence.processer</span><span class="w"> </span><span class="kn">import</span> <span class="n">DocumentProcessor</span>
-<a id="__codelineno-3-3" name="__codelineno-3-3" href="#__codelineno-3-3"></a><span class="kn">from</span><span class="w"> </span><span class="nn">doc_intelligence.llm</span><span class="w"> </span><span class="kn">import</span> <span class="n">OpenAILLM</span>
-<a id="__codelineno-3-4" name="__codelineno-3-4" href="#__codelineno-3-4"></a><span class="kn">from</span><span class="w"> </span><span class="nn">pydantic</span><span class="w"> </span><span class="kn">import</span> <span class="n">BaseModel</span>
+<a id="__codelineno-3-2" name="__codelineno-3-2" href="#__codelineno-3-2"></a><span class="kn">from</span><span class="w"> </span><span class="nn">pydantic</span><span class="w"> </span><span class="kn">import</span> <span class="n">BaseModel</span>
+<a id="__codelineno-3-3" name="__codelineno-3-3" href="#__codelineno-3-3"></a>
+<a id="__codelineno-3-4" name="__codelineno-3-4" href="#__codelineno-3-4"></a><span class="kn">from</span><span class="w"> </span><span class="nn">doc_intelligence</span><span class="w"> </span><span class="kn">import</span> <span class="n">PDFProcessor</span>
 <a id="__codelineno-3-5" name="__codelineno-3-5" href="#__codelineno-3-5"></a>
 <a id="__codelineno-3-6" name="__codelineno-3-6" href="#__codelineno-3-6"></a><span class="c1"># Load environment variables</span>
 <a id="__codelineno-3-7" name="__codelineno-3-7" href="#__codelineno-3-7"></a><span class="n">load_dotenv</span><span class="p">()</span>
 <a id="__codelineno-3-8" name="__codelineno-3-8" href="#__codelineno-3-8"></a>
-<a id="__codelineno-3-9" name="__codelineno-3-9" href="#__codelineno-3-9"></a><span class="c1"># Initialize the LLM</span>
-<a id="__codelineno-3-10" name="__codelineno-3-10" href="#__codelineno-3-10"></a><span class="n">llm</span> <span class="o">=</span> <span class="n">OpenAILLM</span><span class="p">()</span>
-<a id="__codelineno-3-11" name="__codelineno-3-11" href="#__codelineno-3-11"></a>
-<a id="__codelineno-3-12" name="__codelineno-3-12" href="#__codelineno-3-12"></a><span class="c1"># Create a processor from a PDF URL</span>
-<a id="__codelineno-3-13" name="__codelineno-3-13" href="#__codelineno-3-13"></a><span class="n">processor</span> <span class="o">=</span> <span class="n">DocumentProcessor</span><span class="o">.</span><span class="n">from_digital_pdf</span><span class="p">(</span>
-<a id="__codelineno-3-14" name="__codelineno-3-14" href="#__codelineno-3-14"></a>    <span class="n">uri</span><span class="o">=</span><span class="s2">&quot;https://example-files.online-convert.com/document/pdf/example.pdf&quot;</span><span class="p">,</span>
-<a id="__codelineno-3-15" name="__codelineno-3-15" href="#__codelineno-3-15"></a>    <span class="n">llm</span><span class="o">=</span><span class="n">llm</span><span class="p">,</span>
-<a id="__codelineno-3-16" name="__codelineno-3-16" href="#__codelineno-3-16"></a><span class="p">)</span>
-<a id="__codelineno-3-17" name="__codelineno-3-17" href="#__codelineno-3-17"></a>
-<a id="__codelineno-3-18" name="__codelineno-3-18" href="#__codelineno-3-18"></a><span class="c1"># Or use a local file path:</span>
-<a id="__codelineno-3-19" name="__codelineno-3-19" href="#__codelineno-3-19"></a><span class="c1"># processor = DocumentProcessor.from_digital_pdf(</span>
-<a id="__codelineno-3-20" name="__codelineno-3-20" href="#__codelineno-3-20"></a><span class="c1">#     uri=&quot;path/to/your/document.pdf&quot;,</span>
-<a id="__codelineno-3-21" name="__codelineno-3-21" href="#__codelineno-3-21"></a><span class="c1">#     llm=llm,</span>
-<a id="__codelineno-3-22" name="__codelineno-3-22" href="#__codelineno-3-22"></a><span class="c1"># )</span>
-<a id="__codelineno-3-23" name="__codelineno-3-23" href="#__codelineno-3-23"></a>
-<a id="__codelineno-3-24" name="__codelineno-3-24" href="#__codelineno-3-24"></a><span class="c1"># Define your data model</span>
-<a id="__codelineno-3-25" name="__codelineno-3-25" href="#__codelineno-3-25"></a><span class="k">class</span><span class="w"> </span><span class="nc">License</span><span class="p">(</span><span class="n">BaseModel</span><span class="p">):</span>
-<a id="__codelineno-3-26" name="__codelineno-3-26" href="#__codelineno-3-26"></a>    <span class="n">license_name</span><span class="p">:</span> <span class="nb">str</span>
-<a id="__codelineno-3-27" name="__codelineno-3-27" href="#__codelineno-3-27"></a>
-<a id="__codelineno-3-28" name="__codelineno-3-28" href="#__codelineno-3-28"></a><span class="c1"># Configure extraction with citations</span>
-<a id="__codelineno-3-29" name="__codelineno-3-29" href="#__codelineno-3-29"></a><span class="n">config</span> <span class="o">=</span> <span class="p">{</span>
-<a id="__codelineno-3-30" name="__codelineno-3-30" href="#__codelineno-3-30"></a>    <span class="s2">&quot;response_format&quot;</span><span class="p">:</span> <span class="n">License</span><span class="p">,</span>
-<a id="__codelineno-3-31" name="__codelineno-3-31" href="#__codelineno-3-31"></a>    <span class="s2">&quot;llm_config&quot;</span><span class="p">:</span> <span class="p">{</span>
-<a id="__codelineno-3-32" name="__codelineno-3-32" href="#__codelineno-3-32"></a>        <span class="s2">&quot;model&quot;</span><span class="p">:</span> <span class="s2">&quot;gpt-5-mini&quot;</span><span class="p">,</span>
-<a id="__codelineno-3-33" name="__codelineno-3-33" href="#__codelineno-3-33"></a>        <span class="s2">&quot;reasoning&quot;</span><span class="p">:</span> <span class="p">{</span><span class="s2">&quot;effort&quot;</span><span class="p">:</span> <span class="s2">&quot;minimal&quot;</span><span class="p">},</span>
-<a id="__codelineno-3-34" name="__codelineno-3-34" href="#__codelineno-3-34"></a>    <span class="p">},</span>
-<a id="__codelineno-3-35" name="__codelineno-3-35" href="#__codelineno-3-35"></a>    <span class="s2">&quot;extraction_config&quot;</span><span class="p">:</span> <span class="p">{</span>
-<a id="__codelineno-3-36" name="__codelineno-3-36" href="#__codelineno-3-36"></a>        <span class="s2">&quot;include_citations&quot;</span><span class="p">:</span> <span class="kc">True</span><span class="p">,</span>
-<a id="__codelineno-3-37" name="__codelineno-3-37" href="#__codelineno-3-37"></a>        <span class="s2">&quot;extraction_mode&quot;</span><span class="p">:</span> <span class="s2">&quot;single_pass&quot;</span><span class="p">,</span>
-<a id="__codelineno-3-38" name="__codelineno-3-38" href="#__codelineno-3-38"></a>        <span class="s2">&quot;page_numbers&quot;</span><span class="p">:</span> <span class="p">[</span><span class="mi">0</span><span class="p">,</span> <span class="mi">1</span><span class="p">],</span>  <span class="c1"># Optional: specify which pages to process</span>
-<a id="__codelineno-3-39" name="__codelineno-3-39" href="#__codelineno-3-39"></a>    <span class="p">}</span>
-<a id="__codelineno-3-40" name="__codelineno-3-40" href="#__codelineno-3-40"></a><span class="p">}</span>
-<a id="__codelineno-3-41" name="__codelineno-3-41" href="#__codelineno-3-41"></a>
-<a id="__codelineno-3-42" name="__codelineno-3-42" href="#__codelineno-3-42"></a><span class="c1"># Extract structured data</span>
-<a id="__codelineno-3-43" name="__codelineno-3-43" href="#__codelineno-3-43"></a><span class="n">response</span> <span class="o">=</span> <span class="n">processor</span><span class="o">.</span><span class="n">extract</span><span class="p">(</span><span class="n">config</span><span class="p">)</span>
-<a id="__codelineno-3-44" name="__codelineno-3-44" href="#__codelineno-3-44"></a>
-<a id="__codelineno-3-45" name="__codelineno-3-45" href="#__codelineno-3-45"></a><span class="c1"># Access the extracted data and citations</span>
-<a id="__codelineno-3-46" name="__codelineno-3-46" href="#__codelineno-3-46"></a><span class="n">extracted_data</span> <span class="o">=</span> <span class="n">response</span><span class="p">[</span><span class="s2">&quot;extracted_data&quot;</span><span class="p">]</span>
-<a id="__codelineno-3-47" name="__codelineno-3-47" href="#__codelineno-3-47"></a><span class="n">metadata</span> <span class="o">=</span> <span class="n">response</span><span class="p">[</span><span class="s2">&quot;metadata&quot;</span><span class="p">]</span>
-<a id="__codelineno-3-48" name="__codelineno-3-48" href="#__codelineno-3-48"></a><span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Extracted data: </span><span class="si">{</span><span class="n">extracted_data</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
-<a id="__codelineno-3-49" name="__codelineno-3-49" href="#__codelineno-3-49"></a><span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Metadata: </span><span class="si">{</span><span class="n">metadata</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+<a id="__codelineno-3-9" name="__codelineno-3-9" href="#__codelineno-3-9"></a><span class="c1"># Define your data model</span>
+<a id="__codelineno-3-10" name="__codelineno-3-10" href="#__codelineno-3-10"></a><span class="k">class</span><span class="w"> </span><span class="nc">License</span><span class="p">(</span><span class="n">BaseModel</span><span class="p">):</span>
+<a id="__codelineno-3-11" name="__codelineno-3-11" href="#__codelineno-3-11"></a>    <span class="n">license_name</span><span class="p">:</span> <span class="nb">str</span>
+<a id="__codelineno-3-12" name="__codelineno-3-12" href="#__codelineno-3-12"></a>
+<a id="__codelineno-3-13" name="__codelineno-3-13" href="#__codelineno-3-13"></a><span class="c1"># Create a processor — supports &quot;openai&quot;, &quot;anthropic&quot;, &quot;gemini&quot;, &quot;ollama&quot;</span>
+<a id="__codelineno-3-14" name="__codelineno-3-14" href="#__codelineno-3-14"></a><span class="n">processor</span> <span class="o">=</span> <span class="n">PDFProcessor</span><span class="p">(</span><span class="n">provider</span><span class="o">=</span><span class="s2">&quot;openai&quot;</span><span class="p">)</span>
+<a id="__codelineno-3-15" name="__codelineno-3-15" href="#__codelineno-3-15"></a>
+<a id="__codelineno-3-16" name="__codelineno-3-16" href="#__codelineno-3-16"></a><span class="c1"># Extract from a URL</span>
+<a id="__codelineno-3-17" name="__codelineno-3-17" href="#__codelineno-3-17"></a><span class="n">result</span> <span class="o">=</span> <span class="n">processor</span><span class="o">.</span><span class="n">extract</span><span class="p">(</span>
+<a id="__codelineno-3-18" name="__codelineno-3-18" href="#__codelineno-3-18"></a>    <span class="n">uri</span><span class="o">=</span><span class="s2">&quot;https://example-files.online-convert.com/document/pdf/example.pdf&quot;</span><span class="p">,</span>
+<a id="__codelineno-3-19" name="__codelineno-3-19" href="#__codelineno-3-19"></a>    <span class="n">response_format</span><span class="o">=</span><span class="n">License</span><span class="p">,</span>
+<a id="__codelineno-3-20" name="__codelineno-3-20" href="#__codelineno-3-20"></a>    <span class="n">include_citations</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span>
+<a id="__codelineno-3-21" name="__codelineno-3-21" href="#__codelineno-3-21"></a>    <span class="n">extraction_mode</span><span class="o">=</span><span class="s2">&quot;single_pass&quot;</span><span class="p">,</span>
+<a id="__codelineno-3-22" name="__codelineno-3-22" href="#__codelineno-3-22"></a>    <span class="n">model</span><span class="o">=</span><span class="s2">&quot;gpt-4o-mini&quot;</span><span class="p">,</span>
+<a id="__codelineno-3-23" name="__codelineno-3-23" href="#__codelineno-3-23"></a><span class="p">)</span>
+<a id="__codelineno-3-24" name="__codelineno-3-24" href="#__codelineno-3-24"></a>
+<a id="__codelineno-3-25" name="__codelineno-3-25" href="#__codelineno-3-25"></a><span class="c1"># Or from a local file:</span>
+<a id="__codelineno-3-26" name="__codelineno-3-26" href="#__codelineno-3-26"></a><span class="c1"># result = processor.extract(</span>
+<a id="__codelineno-3-27" name="__codelineno-3-27" href="#__codelineno-3-27"></a><span class="c1">#     uri=&quot;path/to/your/document.pdf&quot;,</span>
+<a id="__codelineno-3-28" name="__codelineno-3-28" href="#__codelineno-3-28"></a><span class="c1">#     response_format=License,</span>
+<a id="__codelineno-3-29" name="__codelineno-3-29" href="#__codelineno-3-29"></a><span class="c1"># )</span>
+<a id="__codelineno-3-30" name="__codelineno-3-30" href="#__codelineno-3-30"></a>
+<a id="__codelineno-3-31" name="__codelineno-3-31" href="#__codelineno-3-31"></a><span class="c1"># Access the extracted data and citations</span>
+<a id="__codelineno-3-32" name="__codelineno-3-32" href="#__codelineno-3-32"></a><span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Extracted data: </span><span class="si">{</span><span class="n">result</span><span class="o">.</span><span class="n">data</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+<a id="__codelineno-3-33" name="__codelineno-3-33" href="#__codelineno-3-33"></a><span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Metadata: </span><span class="si">{</span><span class="n">result</span><span class="o">.</span><span class="n">metadata</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
 </code></pre></div>
 <h3 id="sample-output">Sample Output</h3>
-<p>The <code>extract</code> method returns a dictionary containing:
-1. <strong>extracted_data</strong>: The extracted data as a Pydantic model instance
-2. <strong>metadata</strong>: Citation information for each field with values and bounding boxes</p>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-4-1" name="__codelineno-4-1" href="#__codelineno-4-1"></a><span class="c1"># Example output</span>
-<a id="__codelineno-4-2" name="__codelineno-4-2" href="#__codelineno-4-2"></a><span class="p">{</span>
-<a id="__codelineno-4-3" name="__codelineno-4-3" href="#__codelineno-4-3"></a>    <span class="s1">&#39;extracted_data&#39;</span><span class="p">:</span> <span class="n">License</span><span class="p">(</span><span class="n">license_name</span><span class="o">=</span><span class="s1">&#39;Attribution-ShareAlike 3.0 Unported&#39;</span><span class="p">),</span>
-<a id="__codelineno-4-4" name="__codelineno-4-4" href="#__codelineno-4-4"></a>    <span class="s1">&#39;metadata&#39;</span><span class="p">:</span> <span class="p">{</span>
-<a id="__codelineno-4-5" name="__codelineno-4-5" href="#__codelineno-4-5"></a>        <span class="s1">&#39;license_name&#39;</span><span class="p">:</span> <span class="p">{</span>
-<a id="__codelineno-4-6" name="__codelineno-4-6" href="#__codelineno-4-6"></a>            <span class="s1">&#39;value&#39;</span><span class="p">:</span> <span class="s1">&#39;Attribution-ShareAlike 3.0 Unported&#39;</span><span class="p">,</span>
-<a id="__codelineno-4-7" name="__codelineno-4-7" href="#__codelineno-4-7"></a>            <span class="s1">&#39;citations&#39;</span><span class="p">:</span> <span class="p">[{</span>
-<a id="__codelineno-4-8" name="__codelineno-4-8" href="#__codelineno-4-8"></a>                <span class="s1">&#39;page&#39;</span><span class="p">:</span> <span class="mi">0</span><span class="p">,</span>
-<a id="__codelineno-4-9" name="__codelineno-4-9" href="#__codelineno-4-9"></a>                <span class="s1">&#39;bboxes&#39;</span><span class="p">:</span> <span class="p">[{</span>
-<a id="__codelineno-4-10" name="__codelineno-4-10" href="#__codelineno-4-10"></a>                    <span class="s1">&#39;x0&#39;</span><span class="p">:</span> <span class="mf">0.20106913928643427</span><span class="p">,</span>
-<a id="__codelineno-4-11" name="__codelineno-4-11" href="#__codelineno-4-11"></a>                    <span class="s1">&#39;top&#39;</span><span class="p">:</span> <span class="mf">0.8587326111744586</span><span class="p">,</span>
-<a id="__codelineno-4-12" name="__codelineno-4-12" href="#__codelineno-4-12"></a>                    <span class="s1">&#39;x1&#39;</span><span class="p">:</span> <span class="mf">0.5648947389639185</span><span class="p">,</span>
-<a id="__codelineno-4-13" name="__codelineno-4-13" href="#__codelineno-4-13"></a>                    <span class="s1">&#39;bottom&#39;</span><span class="p">:</span> <span class="mf">0.8718454960091222</span>
-<a id="__codelineno-4-14" name="__codelineno-4-14" href="#__codelineno-4-14"></a>                <span class="p">}]</span>
-<a id="__codelineno-4-15" name="__codelineno-4-15" href="#__codelineno-4-15"></a>            <span class="p">}]</span>
-<a id="__codelineno-4-16" name="__codelineno-4-16" href="#__codelineno-4-16"></a>        <span class="p">}</span>
-<a id="__codelineno-4-17" name="__codelineno-4-17" href="#__codelineno-4-17"></a>    <span class="p">}</span>
-<a id="__codelineno-4-18" name="__codelineno-4-18" href="#__codelineno-4-18"></a><span class="p">}</span>
+<p>The <code>extract</code> method returns an <code>ExtractionResult</code> with two attributes:</p>
+<ol>
+<li><strong><code>.data</code></strong>: The extracted data as a Pydantic model instance</li>
+<li><strong><code>.metadata</code></strong>: Citation information for each field with values and bounding boxes</li>
+</ol>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-4-1" name="__codelineno-4-1" href="#__codelineno-4-1"></a><span class="n">result</span><span class="o">.</span><span class="n">data</span>
+<a id="__codelineno-4-2" name="__codelineno-4-2" href="#__codelineno-4-2"></a><span class="c1"># License(license_name=&#39;Attribution-ShareAlike 3.0 Unported&#39;)</span>
+<a id="__codelineno-4-3" name="__codelineno-4-3" href="#__codelineno-4-3"></a>
+<a id="__codelineno-4-4" name="__codelineno-4-4" href="#__codelineno-4-4"></a><span class="n">result</span><span class="o">.</span><span class="n">metadata</span>
+<a id="__codelineno-4-5" name="__codelineno-4-5" href="#__codelineno-4-5"></a><span class="c1"># {</span>
+<a id="__codelineno-4-6" name="__codelineno-4-6" href="#__codelineno-4-6"></a><span class="c1">#     &#39;license_name&#39;: {</span>
+<a id="__codelineno-4-7" name="__codelineno-4-7" href="#__codelineno-4-7"></a><span class="c1">#         &#39;value&#39;: &#39;Attribution-ShareAlike 3.0 Unported&#39;,</span>
+<a id="__codelineno-4-8" name="__codelineno-4-8" href="#__codelineno-4-8"></a><span class="c1">#         &#39;citations&#39;: [{</span>
+<a id="__codelineno-4-9" name="__codelineno-4-9" href="#__codelineno-4-9"></a><span class="c1">#             &#39;page&#39;: 0,</span>
+<a id="__codelineno-4-10" name="__codelineno-4-10" href="#__codelineno-4-10"></a><span class="c1">#             &#39;bboxes&#39;: [{</span>
+<a id="__codelineno-4-11" name="__codelineno-4-11" href="#__codelineno-4-11"></a><span class="c1">#                 &#39;x0&#39;: 0.201,</span>
+<a id="__codelineno-4-12" name="__codelineno-4-12" href="#__codelineno-4-12"></a><span class="c1">#                 &#39;top&#39;: 0.859,</span>
+<a id="__codelineno-4-13" name="__codelineno-4-13" href="#__codelineno-4-13"></a><span class="c1">#                 &#39;x1&#39;: 0.565,</span>
+<a id="__codelineno-4-14" name="__codelineno-4-14" href="#__codelineno-4-14"></a><span class="c1">#                 &#39;bottom&#39;: 0.872</span>
+<a id="__codelineno-4-15" name="__codelineno-4-15" href="#__codelineno-4-15"></a><span class="c1">#             }]</span>
+<a id="__codelineno-4-16" name="__codelineno-4-16" href="#__codelineno-4-16"></a><span class="c1">#         }]</span>
+<a id="__codelineno-4-17" name="__codelineno-4-17" href="#__codelineno-4-17"></a><span class="c1">#     }</span>
+<a id="__codelineno-4-18" name="__codelineno-4-18" href="#__codelineno-4-18"></a><span class="c1"># }</span>
 </code></pre></div>
 <h3 id="configuration-options">Configuration Options</h3>
+<p>The <code>extract()</code> method accepts these keyword arguments:</p>
 <ul>
-<li><strong>response_format</strong>: Your Pydantic model class</li>
-<li><strong>llm_config</strong>: </li>
-<li><code>model</code>: The OpenAI model to use (e.g., "gpt-5-mini", "gpt-4o")</li>
-<li><code>reasoning</code>: Optional reasoning configuration with <code>effort</code> level ("minimal", "low", "medium", "high")</li>
-<li><strong>extraction_config</strong>:</li>
-<li><code>include_citations</code>: Set to <code>True</code> to get citation information with bounding boxes</li>
-<li><code>extraction_mode</code>: "single_pass" for single-pass extraction</li>
-<li><code>page_numbers</code>: Optional list of page indices to process (0-indexed)</li>
+<li><strong><code>uri</code></strong>: Path to a local PDF file or a URL</li>
+<li><strong><code>response_format</code></strong>: Your Pydantic model class defining the extraction schema</li>
+<li><strong><code>include_citations</code></strong>: Set to <code>True</code> to get citation information with bounding boxes (default: <code>True</code>)</li>
+<li><strong><code>extraction_mode</code></strong>: <code>"single_pass"</code> or <code>"multi_pass"</code> (default: <code>"single_pass"</code>)</li>
+<li><strong><code>page_numbers</code></strong>: Optional list of page indices to process (0-indexed)</li>
+<li><strong><code>model</code></strong>: Override the default model for this call (e.g., <code>"gpt-4o"</code>)</li>
+<li><strong><code>llm_config</code></strong>: Additional LLM configuration as a dict (e.g., <code>{"reasoning": {"effort": "minimal"}}</code>)</li>
 </ul>
 
 
