@@ -7,18 +7,17 @@ import requests
 
 from doc_intelligence.base import BaseParser
 from doc_intelligence.pdf.schemas import PDF, BoundingBox, Line, Page, PDFDocument
-from doc_intelligence.schemas.core import Document
 from doc_intelligence.utils import normalize_bounding_box
 
 
-class PDFParser(BaseParser):
+class PDFParser(BaseParser[PDFDocument]):
     @abstractmethod
-    def parse(self, document: Document) -> PDFDocument:
+    def parse(self, document: PDFDocument) -> PDFDocument:
         pass
 
 
 class DigitalPDFParser(PDFParser):
-    def parse(self, document: Document) -> PDFDocument:
+    def parse(self, document: PDFDocument) -> PDFDocument:
         pages = []
 
         # Check if URI is a URL or local path

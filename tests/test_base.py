@@ -8,6 +8,35 @@ from tests.conftest import FakeExtractor, FakeLLM
 
 
 # ---------------------------------------------------------------------------
+# BaseParser generics
+# ---------------------------------------------------------------------------
+class TestBaseParserGeneric:
+    def test_parse_returns_same_document_type(self):
+        """BaseParser[PDFDocument] subclass parse() returns PDFDocument."""
+        from doc_intelligence.pdf.schemas import PDFDocument
+
+        class ConcreteParser(BaseParser[PDFDocument]):
+            def parse(self, document: PDFDocument) -> PDFDocument:
+                return document
+
+        parser = ConcreteParser()
+        doc = PDFDocument(uri="test.pdf")
+        result = parser.parse(doc)
+        assert result is doc
+        assert isinstance(result, PDFDocument)
+
+    def test_subclass_missing_parse_raises(self):
+        """Incomplete BaseParser[PDFDocument] subclass cannot be instantiated."""
+        from doc_intelligence.pdf.schemas import PDFDocument
+
+        class IncompleteParser(BaseParser[PDFDocument]):
+            pass
+
+        with pytest.raises(TypeError):
+            IncompleteParser()  # type: ignore[abstract]
+
+
+# ---------------------------------------------------------------------------
 # ABC instantiation enforcement
 # ---------------------------------------------------------------------------
 class TestBaseClassesNotInstantiable:

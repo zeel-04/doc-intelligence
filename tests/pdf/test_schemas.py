@@ -139,6 +139,18 @@ class TestPDFDocument:
         doc = PDFDocument(uri="test.pdf", pass2_page_map={"name": [0, 1], "age": [0]})
         assert doc.pass2_page_map == {"name": [0, 1], "age": [0]}
 
+    def test_page_numbers_defaults_none(self):
+        doc = PDFDocument(uri="test.pdf")
+        assert doc.page_numbers is None
+
+    def test_page_numbers_can_be_set(self):
+        doc = PDFDocument(uri="test.pdf", page_numbers=[0, 2, 4])
+        assert doc.page_numbers == [0, 2, 4]
+
+    def test_page_numbers_single_page(self):
+        doc = PDFDocument(uri="test.pdf", page_numbers=[3])
+        assert doc.page_numbers == [3]
+
 
 # ---------------------------------------------------------------------------
 # PDFExtractionConfig
