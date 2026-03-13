@@ -83,11 +83,11 @@ uv run pyrefly check .        # type checking
 
 ### SOLID Principles
 
-- **Single Responsibility:** Each module, class, and function has one clear job. Parser parses, formatter formats, extractor extracts.
-- **Open/Closed:** Add new document types by subclassing the abstract bases in `base.py`. Never add conditionals to existing implementations.
-- **Liskov Substitution:** All subclasses of `BaseParser`, `BaseFormatter`, `BaseLLM`, `BaseExtractor` must honor the interface contracts exactly.
-- **Interface Segregation:** Keep abstract interfaces minimal — don't force methods that aren't needed.
-- **Dependency Inversion:** `DocumentProcessor` depends on abstract types; concrete implementations are injected at construction time.
+- **Single Responsibility:** Each module/class has one job — parser parses, formatter formats, extractor extracts, processor orchestrates. Never mix concerns across these boundaries.
+- **Open/Closed:** Extend via subclassing `BaseParser`, `BaseFormatter`, `BaseLLM`, `BaseExtractor` in `base.py`. New LLM providers go in `_LLM_REGISTRY` in `llm.py`. Never add `if doc_type == ...` conditionals to existing implementations.
+- **Liskov Substitution:** All subclasses must match their base interface exactly — same signatures, same return types, same exception semantics. `generate_structured_output()` on `BaseLLM` is opt-in (raises `NotImplementedError` by default).
+- **Interface Segregation:** Abstract bases stay minimal — one abstract method each (`parse`, `format_document_for_llm`, `generate_text`, `extract`). Don't force methods that subclasses don't need.
+- **Dependency Inversion:** `DocumentProcessor` accepts abstract types via constructor injection. Concrete wiring happens at call sites or in factory methods like `from_digital_pdf()` and `create_llm()`. `PDFProcessor` is a convenience wrapper that delegates to `DocumentProcessor`.
 
 ### Type Annotations
 
@@ -104,7 +104,8 @@ uv run pyrefly check .        # type checking
 
 ### General Rules
 
-- Always use absolute imports
+- Always use absolute imports.
+- Update @docs/ and @README.md if API level changes are made.
 
 ## Testing Conventions
 
