@@ -1,6 +1,6 @@
 # Engineering Design Document — doc_intelligence
 
-**Version:** 0.1.4  
+**Version:** 0.1.5
 **Status:** Living document
 **Last updated:** 2026-03-13
 
@@ -27,7 +27,7 @@ doc_intelligence/
 ├── base.py             # BaseParser, BaseFormatter, BaseLLM, BaseExtractor
 ├── llm.py              # OpenAILLM, OllamaLLM, AnthropicLLM, GeminiLLM, create_llm()
 ├── extract.py          # Top-level extract() convenience function
-├── utils.py            # normalize_bounding_box, strip_citations, add_bboxes_to_citation_model, …
+├── utils.py            # normalize_bounding_box, denormalize_bounding_box, strip_citations
 ├── pydantic_to_json_instance_schema.py
 └── config.py           # pydantic-settings backed configuration
 ```
@@ -119,8 +119,8 @@ A new `doc_intelligence/restrictions.py` module contains pure functions called a
 check_pdf_size(uri: str, max_mb: float) -> None
     raises ValueError if file size > max_mb
 
-check_page_count(pdf: pdfplumber.PDF, max_pages: int) -> None
-    raises ValueError if page count > max_pages
+check_page_count(page_count: int, max_pages: int) -> None
+    raises ValueError if page_count > max_pages
 
 check_schema_depth(model: type[BaseModel], max_depth: int, _current: int = 0) -> None
     raises ValueError if nesting depth > max_depth (recursive walk of model_fields)
@@ -155,6 +155,8 @@ _extract_pass2(document, formatter, pass1_result, llm_config)
 - A new prompt template is used (different from the extraction prompt). It shows the full document text and the Pass 1 answer and asks: *"For each field in the answer, on which page(s) does the supporting text appear? Respond as JSON: {field_path: [page_numbers]}"*
 - No Pydantic schema is needed for this pass; a plain JSON dict is parsed.
 
+> **`field_path` grammar:** top-level fields use their name directly (e.g., `"vendor"`); nested fields use dot notation (e.g., `"address.city"`); list elements are not individually addressed — the entire list field maps to its page set (e.g., `"line_items"`).
+
 #### Pass 3 — line grounding on relevant pages only
 
 ```
@@ -179,7 +181,9 @@ class PDFDocument(Document):
     pass2_page_map: dict[str, list[int]] | None = None   # field → pages
 ```
 
-The final `extract()` return shape is unchanged: `{"extracted_data": …, "metadata": …}`.
+The final `extract()` return shape is unchanged: `ExtractionResult(data=…, metadata=…)` — access via `.data` and `.metadata`.
+
+> **Note on `extraction_config`:** `BaseExtractor.extract()` accepts `extraction_config: dict[str, Any]` for interface compatibility. `DocumentProcessor` builds it from `PDFExtractionConfig` and passes it through, but `DigitalPDFExtractor` reads extraction behaviour (mode, page filtering, citation flag) from the `document` object directly. `extraction_config` is not consumed by the current extractor implementation.
 
 ---
 
@@ -231,15 +235,31 @@ This is a non-breaking change: `OpenAILLM` continues to override both methods.
 
 ### 2.3 OllamaLLM
 
-Ollama exposes an OpenAI-compatible `/v1` endpoint. `OllamaLLM` subclasses `OpenAILLM` and overrides only the client constructor:
+Uses the native Ollama Python SDK (`ollama.Client`) rather than the OpenAI-compatible `/v1` endpoint, because the native SDK correctly supports Ollama-specific parameters (e.g., `think=False`) that the `/v1` endpoint silently ignores. `OllamaLLM` subclasses `BaseLLM` directly.
 
 ```python
-class OllamaLLM(OpenAILLM):
-    def __init__(self, base_url: str = "http://localhost:11434/v1", api_key: str = "ollama"):
-        self.client = OpenAI(base_url=base_url, api_key=api_key)
+class OllamaLLM(BaseLLM):
+    def __init__(self, host: str = "http://localhost:11434", model: str | None = None):
+        super().__init__(model=model or settings.ollama_default_model)
+        import ollama  # optional dependency
+        self.client = ollama.Client(host=host)
+
+    @retry(stop=stop_after_attempt(3))
+    def generate_text(self, system_prompt: str, user_prompt: str, **kwargs: Any) -> str:
+        model = kwargs.pop("model", self.model)
+        response = self.client.chat(
+            model=model,
+            messages=[
+                {"role": "system", "content": system_prompt},
+                {"role": "user", "content": user_prompt},
+            ],
+            stream=False,
+            **kwargs,
+        )
+        return response.message.content
 ```
 
-No other overrides needed. All retry logic, `generate_text`, and `generate_structured_output` are inherited.
+`generate_structured_output` is inherited from `BaseLLM` as the `NotImplementedError` default.
 
 ---
 
@@ -381,7 +401,7 @@ The existing digital components keep their names. New OCR components are named t
 | Processor factory | `DocumentProcessor.from_digital_pdf()` | `DocumentProcessor.from_scanned_pdf()`              |
 
 
-> Note: When Reusing formatter and extractor, consider renaming the prefix from digital to generalized naming.
+> **Decision:** `DigitalPDFFormatter` and `DigitalPDFExtractor` keep their current names. Both components operate on the `PDF → Page → Line` schema, which both the digital and scanned parsers produce. No rename is needed — "Digital" refers to the origin of the implementation, not a restriction on the data it can process.
 
 ---
 
@@ -508,7 +528,6 @@ class ScannedPDFParser(BaseParser):
 @classmethod
 def from_scanned_pdf(
     cls,
-    uri: str,
     llm: BaseLLM,
     layout_detector: BaseLayoutDetector | None = None,
     ocr_engine: BaseOCREngine | None = None,
@@ -522,10 +541,11 @@ def from_scanned_pdf(
         ),
         formatter=DigitalPDFFormatter(),
         extractor=DigitalPDFExtractor(llm),
-        document=PDFDocument(uri=uri),
         **kwargs,
     )
 ```
+
+The URI is supplied per-call via `processor.extract(uri=…)`, consistent with `from_digital_pdf`.
 
 ---
 
@@ -586,33 +606,40 @@ Providers that have native async SDKs (OpenAI, Anthropic) can override `agenerat
 class AsyncDocumentProcessor:
     """Async wrapper over the same parse → format → extract pipeline."""
 
-    def __init__(self, parser, formatter, extractor, document):
-        ...  # same fields as DocumentProcessor
+    def __init__(self, parser, formatter, extractor):
+        ...  # mirrors DocumentProcessor — no document field
 
     @classmethod
-    def from_digital_pdf(cls, uri: str, llm: BaseLLM) -> "AsyncDocumentProcessor": ...
+    def from_digital_pdf(cls, llm: BaseLLM) -> "AsyncDocumentProcessor": ...
 
     @classmethod
-    def from_scanned_pdf(cls, …) -> "AsyncDocumentProcessor": ...
+    def from_scanned_pdf(cls, llm: BaseLLM, …) -> "AsyncDocumentProcessor": ...
 
-    async def parse(self) -> Document:
-        self.document.content = (
-            await asyncio.to_thread(self.parser.parse, self.document)
+    async def extract(
+        self,
+        uri: str,
+        response_format: type[PydanticModel],
+        *,
+        include_citations: bool = True,
+        extraction_mode: str = "single_pass",
+        llm_config: dict[str, Any] | None = None,
+        on_progress: ProgressCallback | None = None,
+    ) -> ExtractionResult:
+        document = PDFDocument(uri=uri, include_citations=include_citations, ...)
+        if on_progress:
+            asyncio.create_task(on_progress(uri, "parsing"))
+        document.content = (
+            await asyncio.to_thread(self.parser.parse, document)
         ).content
-        return self.document
-
-    async def extract(self, config: dict, on_progress: ProgressCallback | None = None) -> Any:
         if on_progress:
-            await on_progress(self.document.uri, "parsing")
-        if not self.document.content:
-            await self.parse()
+            asyncio.create_task(on_progress(uri, "extracting"))
+        result = await asyncio.to_thread(self.extractor.extract, document, llm_config or {}, …)
         if on_progress:
-            await on_progress(self.document.uri, "extracting")
-        result = await self.extractor.aextract(…)
-        if on_progress:
-            await on_progress(self.document.uri, "done")
+            asyncio.create_task(on_progress(uri, "done"))
         return result
 ```
+
+A fresh `PDFDocument` is created per `extract()` call; the processor holds no document state. Progress callbacks are fire-and-forget via `asyncio.create_task` (consistent with §4.5) so a slow callback cannot block the pipeline.
 
 ---
 
@@ -625,22 +652,33 @@ ProgressCallback = Callable[[str, str], Awaitable[None]]  # (uri, status) → No
 
 async def batch_extract(
     documents: list[str | Document],
-    config: dict,
+    response_format: type[PydanticModel],
     llm: BaseLLM,
+    *,
+    include_citations: bool = True,
+    extraction_mode: str = "single_pass",
+    llm_config: dict[str, Any] | None = None,
     document_type: Literal["digital", "scanned"] = "digital",
     on_progress: ProgressCallback | None = None,
-) -> list[dict | Exception]:
+) -> list[ExtractionResult | Exception]:
     """
     Process multiple documents concurrently.
     Returns results in input order; failed documents return the Exception, not raise.
     """
     semaphore = asyncio.Semaphore(settings.max_concurrent_documents)
 
-    async def _process_one(doc_uri: str | Document) -> dict | Exception:
+    async def _process_one(doc_uri: str | Document) -> ExtractionResult | Exception:
         async with semaphore:
             try:
-                processor = AsyncDocumentProcessor.from_digital_pdf(doc_uri, llm)
-                return await processor.extract(config, on_progress=on_progress)
+                processor = AsyncDocumentProcessor.from_digital_pdf(llm)
+                return await processor.extract(
+                    str(doc_uri),
+                    response_format,
+                    include_citations=include_citations,
+                    extraction_mode=extraction_mode,
+                    llm_config=llm_config,
+                    on_progress=on_progress,
+                )
             except Exception as e:
                 logger.error(f"batch_extract: failed for {doc_uri}: {e}")
                 return e
@@ -708,8 +746,8 @@ This keeps the base install small. A user who only needs OpenAI + digital PDFs d
 | File too large                    | `ValueError: PDF exceeds max size (…MB > …MB)` |
 | Too many pages                    | `ValueError: PDF has … pages, limit is …`      |
 | Schema too deep                   | `ValueError: Schema depth … exceeds limit …`   |
-| LLM parse failure (after retries) | `ExtractionError` (custom, Phase 1+)           |
-| OCR engine failure                | `OCRError` (custom, Phase 3+)                  |
+| LLM parse failure (after retries) | `ExtractionError` (custom, Phase 1+ — not yet implemented; currently propagates from JSON parser) |
+| OCR engine failure                | `OCRError` (custom, Phase 3+ — not yet implemented; currently propagates from PaddleOCR)          |
 
 
 ### Testing conventions (unchanged from baseline)

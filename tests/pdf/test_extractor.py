@@ -8,9 +8,10 @@ import pytest
 from pydantic import BaseModel, Field
 
 from doc_intelligence.pdf.extractor import DigitalPDFExtractor
-from doc_intelligence.pdf.schemas import PDF, PDFDocument
+from doc_intelligence.pdf.formatter import DigitalPDFFormatter
+from doc_intelligence.pdf.schemas import PDF, Line, Page, PDFDocument
 from doc_intelligence.pdf.types import PDFExtractionMode
-from doc_intelligence.schemas.core import ExtractionResult
+from doc_intelligence.schemas.core import BoundingBox, ExtractionResult
 from tests.conftest import FakeFormatter, FakeLLM
 
 
@@ -184,6 +185,7 @@ class TestExtractSinglePassWithCitations:
         )
 
         assert result is not None
+        assert result.metadata is not None
         metadata = result.metadata
         name_cit = metadata["name"]["citations"][0]
         assert "bboxes" in name_cit
@@ -403,6 +405,228 @@ class TestExtractMultiPass:
 
 
 # ---------------------------------------------------------------------------
+# page_numbers filtering
+# ---------------------------------------------------------------------------
+class TestExtractPageNumbers:
+    """page_numbers on PDFDocument is forwarded to the formatter in all modes."""
+
+    _BBOX = BoundingBox(x0=0.0, top=0.0, x1=1.0, bottom=0.1)
+
+    def _make_multipage_doc(
+        self,
+        page_numbers: list[int] | None = None,
+        include_citations: bool = False,
+        mode: PDFExtractionMode = PDFExtractionMode.SINGLE_PASS,
+    ) -> PDFDocument:
+        """Return a 3-page PDFDocument with distinct per-page content."""
+        pages = [
+            Page(
+                lines=[Line(text=f"page{i} content", bounding_box=self._BBOX)],
+                width=100,
+                height=100,
+            )
+            for i in range(3)
+        ]
+        return PDFDocument(
+            uri="test.pdf",
+            content=PDF(pages=pages),
+            include_citations=include_citations,
+            extraction_mode=mode,
+            page_numbers=page_numbers,
+        )
+
+    # -- single-pass --
+
+    def test_single_pass_only_sends_requested_pages_to_llm(self):
+        """page_numbers=[1] → only page 1 content in the LLM prompt."""
+        llm = FakeLLM(text_response=json.dumps({"name": "Alice", "age": 30}))
+        extractor = DigitalPDFExtractor(llm=llm)
+        doc = self._make_multipage_doc(page_numbers=[1])
+
+        extractor.extract(
+            document=doc,
+            llm_config={},
+            extraction_config={},
+            formatter=DigitalPDFFormatter(),
+            response_format=SampleResponse,
+        )
+
+        prompt = llm.last_call_kwargs["user_prompt"]
+        assert "page1 content" in prompt
+        assert "page0 content" not in prompt
+        assert "page2 content" not in prompt
+
+    def test_single_pass_none_page_numbers_sends_all_pages(self):
+        """page_numbers=None (default) → all pages reach the LLM."""
+        llm = FakeLLM(text_response=json.dumps({"name": "Alice", "age": 30}))
+        extractor = DigitalPDFExtractor(llm=llm)
+        doc = self._make_multipage_doc(page_numbers=None)
+
+        extractor.extract(
+            document=doc,
+            llm_config={},
+            extraction_config={},
+            formatter=DigitalPDFFormatter(),
+            response_format=SampleResponse,
+        )
+
+        prompt = llm.last_call_kwargs["user_prompt"]
+        assert "page0 content" in prompt
+        assert "page1 content" in prompt
+        assert "page2 content" in prompt
+
+    def test_single_pass_multiple_page_numbers_filters_correctly(self):
+        """page_numbers=[0, 2] → pages 0 and 2 present, page 1 absent."""
+        llm = FakeLLM(text_response=json.dumps({"name": "Alice", "age": 30}))
+        extractor = DigitalPDFExtractor(llm=llm)
+        doc = self._make_multipage_doc(page_numbers=[0, 2])
+
+        extractor.extract(
+            document=doc,
+            llm_config={},
+            extraction_config={},
+            formatter=DigitalPDFFormatter(),
+            response_format=SampleResponse,
+        )
+
+        prompt = llm.last_call_kwargs["user_prompt"]
+        assert "page0 content" in prompt
+        assert "page2 content" in prompt
+        assert "page1 content" not in prompt
+
+    # -- multi-pass pass 1 --
+
+    def test_multi_pass_pass1_respects_page_numbers(self):
+        """Pass 1 only sends requested pages to the LLM."""
+        pass1_json = json.dumps({"name": "Alice", "age": 30})
+        pass2_json = json.dumps({"name": [0], "age": [0]})
+        pass3_json = json.dumps(
+            {
+                "name": {"value": "Alice", "citations": [{"page": 0, "lines": [0]}]},
+                "age": {"value": 30, "citations": [{"page": 0, "lines": [0]}]},
+            }
+        )
+        llm = FakeLLM(responses=[pass1_json, pass2_json, pass3_json])
+        extractor = DigitalPDFExtractor(llm=llm)
+        doc = self._make_multipage_doc(
+            page_numbers=[0],
+            include_citations=True,
+            mode=PDFExtractionMode.MULTI_PASS,
+        )
+
+        extractor.extract(
+            document=doc,
+            llm_config={},
+            extraction_config={},
+            formatter=DigitalPDFFormatter(),
+            response_format=SampleResponse,
+        )
+
+        pass1_prompt = llm.all_calls[0]["user_prompt"]
+        assert "page0 content" in pass1_prompt
+        assert "page1 content" not in pass1_prompt
+        assert "page2 content" not in pass1_prompt
+
+    # -- multi-pass pass 2 --
+
+    def test_multi_pass_pass2_respects_page_numbers(self):
+        """Pass 2 only scans requested pages when grounding."""
+        pass1_json = json.dumps({"name": "Alice", "age": 30})
+        pass2_json = json.dumps({"name": [0], "age": [0]})
+        pass3_json = json.dumps(
+            {
+                "name": {"value": "Alice", "citations": [{"page": 0, "lines": [0]}]},
+                "age": {"value": 30, "citations": [{"page": 0, "lines": [0]}]},
+            }
+        )
+        llm = FakeLLM(responses=[pass1_json, pass2_json, pass3_json])
+        extractor = DigitalPDFExtractor(llm=llm)
+        doc = self._make_multipage_doc(
+            page_numbers=[0],
+            include_citations=True,
+            mode=PDFExtractionMode.MULTI_PASS,
+        )
+
+        extractor.extract(
+            document=doc,
+            llm_config={},
+            extraction_config={},
+            formatter=DigitalPDFFormatter(),
+            response_format=SampleResponse,
+        )
+
+        pass2_prompt = llm.all_calls[1]["user_prompt"]
+        assert "page0 content" in pass2_prompt
+        assert "page1 content" not in pass2_prompt
+        assert "page2 content" not in pass2_prompt
+
+    # -- multi-pass pass 3 intersection --
+
+    def test_multi_pass_pass3_intersects_user_filter_with_pass2_result(self):
+        """Pass 3 uses the intersection of user page_numbers and Pass 2's page map."""
+        pass1_json = json.dumps({"name": "Alice", "age": 30})
+        # Pass 2 says data is on pages 0 and 1
+        pass2_json = json.dumps({"name": [0], "age": [1]})
+        pass3_json = json.dumps(
+            {
+                "name": {"value": "Alice", "citations": [{"page": 0, "lines": [0]}]},
+                "age": {"value": 30, "citations": [{"page": 0, "lines": [0]}]},
+            }
+        )
+        llm = FakeLLM(responses=[pass1_json, pass2_json, pass3_json])
+        extractor = DigitalPDFExtractor(llm=llm)
+        # User only allows page 0 — page 1 from Pass 2 should be filtered out
+        doc = self._make_multipage_doc(
+            page_numbers=[0],
+            include_citations=True,
+            mode=PDFExtractionMode.MULTI_PASS,
+        )
+
+        extractor.extract(
+            document=doc,
+            llm_config={},
+            extraction_config={},
+            formatter=DigitalPDFFormatter(),
+            response_format=SampleResponse,
+        )
+
+        pass3_prompt = llm.all_calls[2]["user_prompt"]
+        assert "page0 content" in pass3_prompt
+        assert "page1 content" not in pass3_prompt
+
+    def test_multi_pass_pass3_falls_back_to_pass2_when_intersection_empty(self):
+        """If intersection of user filter and Pass 2 is empty, use Pass 2 pages."""
+        pass1_json = json.dumps({"name": "Alice", "age": 30})
+        # Pass 2 says data is on page 2 only — disjoint from user's [0]
+        pass2_json = json.dumps({"name": [2], "age": [2]})
+        pass3_json = json.dumps(
+            {
+                "name": {"value": "Alice", "citations": [{"page": 2, "lines": [0]}]},
+                "age": {"value": 30, "citations": [{"page": 2, "lines": [0]}]},
+            }
+        )
+        llm = FakeLLM(responses=[pass1_json, pass2_json, pass3_json])
+        extractor = DigitalPDFExtractor(llm=llm)
+        doc = self._make_multipage_doc(
+            page_numbers=[0],
+            include_citations=True,
+            mode=PDFExtractionMode.MULTI_PASS,
+        )
+
+        extractor.extract(
+            document=doc,
+            llm_config={},
+            extraction_config={},
+            formatter=DigitalPDFFormatter(),
+            response_format=SampleResponse,
+        )
+
+        # Falls back to Pass 2's page 2 since intersection was empty
+        pass3_prompt = llm.all_calls[2]["user_prompt"]
+        assert "page2 content" in pass3_prompt
+
+
+# ---------------------------------------------------------------------------
 # single-pass vs multi-pass alignment
 # ---------------------------------------------------------------------------
 class TestSinglePassVsMultiPassAlignment:
@@ -477,11 +701,15 @@ class TestSinglePassVsMultiPassAlignment:
     def test_metadata_fields_match(self, sample_pdf: PDF):
         sp = self._run_single_pass(sample_pdf)
         mp = self._run_multi_pass(sample_pdf)
+        assert sp.metadata is not None
+        assert mp.metadata is not None
         assert set(sp.metadata.keys()) == set(mp.metadata.keys())
 
     def test_metadata_citation_values_match(self, sample_pdf: PDF):
         sp = self._run_single_pass(sample_pdf)
         mp = self._run_multi_pass(sample_pdf)
+        assert sp.metadata is not None
+        assert mp.metadata is not None
         for field in ("name", "age"):
             assert sp.metadata[field]["value"] == mp.metadata[field]["value"], (
                 f"metadata value mismatch for field '{field}'"
@@ -490,6 +718,8 @@ class TestSinglePassVsMultiPassAlignment:
     def test_metadata_bboxes_match(self, sample_pdf: PDF):
         sp = self._run_single_pass(sample_pdf)
         mp = self._run_multi_pass(sample_pdf)
+        assert sp.metadata is not None
+        assert mp.metadata is not None
         for field in ("name", "age"):
             sp_bboxes = sp.metadata[field]["citations"][0]["bboxes"]
             mp_bboxes = mp.metadata[field]["citations"][0]["bboxes"]
@@ -500,6 +730,8 @@ class TestSinglePassVsMultiPassAlignment:
     def test_metadata_citation_pages_match(self, sample_pdf: PDF):
         sp = self._run_single_pass(sample_pdf)
         mp = self._run_multi_pass(sample_pdf)
+        assert sp.metadata is not None
+        assert mp.metadata is not None
         for field in ("name", "age"):
             sp_page = sp.metadata[field]["citations"][0]["page"]
             mp_page = mp.metadata[field]["citations"][0]["page"]

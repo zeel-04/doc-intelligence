@@ -39,7 +39,7 @@ class DocumentProcessor:
 
     def __init__(
         self,
-        parser: BaseParser,
+        parser: BaseParser[PDFDocument],
         formatter: BaseFormatter,
         extractor: BaseExtractor,
     ):
@@ -122,6 +122,7 @@ class DocumentProcessor:
             uri=uri,
             include_citations=include_citations,
             extraction_mode=mode,
+            page_numbers=page_numbers,
         )
 
         # Restriction checks — before any expensive work
@@ -141,7 +142,7 @@ class DocumentProcessor:
 
         # Page count check — requires parsed content
         if document.content and hasattr(document.content, "pages"):
-            check_page_count(len(document.content.pages), settings.max_pdf_pages)  # ty:ignore[invalid-argument-type]
+            check_page_count(len(document.content.pages), settings.max_pdf_pages)
 
         return self.extractor.extract(
             document=document,

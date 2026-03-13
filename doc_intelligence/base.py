@@ -1,14 +1,16 @@
 from abc import ABC, abstractmethod
-from typing import Any
+from typing import Any, Generic, TypeVar
 
 from langchain_core.output_parsers import JsonOutputParser
 
 from doc_intelligence.schemas.core import Document, ExtractionResult, PydanticModel
 
+TDocument = TypeVar("TDocument", bound=Document)
 
-class BaseParser(ABC):
+
+class BaseParser(ABC, Generic[TDocument]):
     @abstractmethod
-    def parse(self, document: Document) -> Document:
+    def parse(self, document: TDocument) -> TDocument:
         pass
 
 

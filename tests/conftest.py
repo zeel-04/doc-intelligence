@@ -59,18 +59,18 @@ class FakeLLM(BaseLLM):
         return self.text_response
 
 
-class FakeParser(BaseParser):
+class FakeParser(BaseParser[PDFDocument]):
     """A fake parser that returns a pre-set PDFDocument."""
 
-    def __init__(self, result: Document | None = None):
+    def __init__(self, result: PDFDocument | None = None):
         self.result = result
         self.call_count = 0
 
-    def parse(self, document: Document) -> PDFDocument:
+    def parse(self, document: PDFDocument) -> PDFDocument:
         self.call_count += 1
         if self.result is not None:
-            return self.result  # type: ignore[return-value]
-        return document  # type: ignore[return-value]
+            return self.result
+        return document
 
 
 class FakeFormatter(BaseFormatter):

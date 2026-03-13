@@ -1,6 +1,6 @@
 # Product Requirements Document — doc_intelligence
 
-**Version:** 0.1.4  
+**Version:** 0.1.5
 **Status:** Living document
 **Last updated:** 2026-03-13
 
@@ -77,14 +77,15 @@ class Invoice(BaseModel):
     total: float
     date: str
 
-processor = DocumentProcessor.from_digital_pdf(uri="invoice.pdf", llm=OpenAILLM())
-result = processor.extract(config={
-    "response_format": Invoice,
-    "llm_config": {"model": "gpt-4o-mini"},
-    "extraction_config": {"include_citations": True},
-})
-# result["extracted_data"] → Invoice instance
-# result["metadata"]       → citation bounding boxes per field
+processor = DocumentProcessor.from_digital_pdf(llm=OpenAILLM())
+result = processor.extract(
+    uri="invoice.pdf",
+    response_format=Invoice,
+    include_citations=True,
+    llm_config={"model": "gpt-4o-mini"},
+)
+# result.data     → Invoice instance
+# result.metadata → citation bounding boxes per field
 ```
 
 **What happens under the hood:**
@@ -127,7 +128,7 @@ The library enforces configurable hard limits to prevent runaway usage and to ma
 | Limit                    | Default      | Description                                                          |
 | ------------------------ | ------------ | -------------------------------------------------------------------- |
 | Max PDF file size        | 10 MB        | PDFs above this size are rejected before parsing.                    |
-| Max pages processed      | Configurable | Pages beyond the limit are not parsed or sent to the LLM.            |
+| Max pages processed      | Configurable | PDFs with more pages than the limit are rejected with a `ValueError` before parsing begins. |
 | Max schema nesting depth | 5            | Pydantic schemas deeper than this raise an error at extraction time. |
 
 
@@ -180,12 +181,15 @@ For production use, processing documents one at a time synchronously is a bottle
 **Configuration:** All concurrency limits live in the config file:
 
 ```python
-# config.py (illustrative)
-async_config = {
-    "max_concurrent_documents": 10,
-    "max_concurrent_pages": 4,       # OCR only
-    "max_concurrent_regions": 8,     # OCR only
-}
+# config.py — async concurrency limits (declared in Phase 1, used in Phase 4)
+# Override via environment variables or .env:
+#   DOC_INTEL_MAX_CONCURRENT_DOCUMENTS=10
+#   DOC_INTEL_MAX_CONCURRENT_PAGES=4
+#   DOC_INTEL_MAX_CONCURRENT_REGIONS=8
+class DocIntelligenceConfig(BaseSettings):
+    max_concurrent_documents: int = Field(default=10)
+    max_concurrent_pages: int = Field(default=4)    # OCR only
+    max_concurrent_regions: int = Field(default=8)  # OCR only
 ```
 
 ---

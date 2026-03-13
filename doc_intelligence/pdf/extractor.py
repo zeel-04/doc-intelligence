@@ -109,7 +109,10 @@ Generate output in JSON format.
         logger.debug(
             f"DigitalPDFExtractor: extract: json_instance_schema: {json_instance_schema}"
         )
-        content_text = formatter.format_document_for_llm(document)
+        page_numbers: list[int] | None = getattr(document, "page_numbers", None)
+        content_text = formatter.format_document_for_llm(
+            document, page_numbers=page_numbers
+        )
         logger.debug(f"DigitalPDFExtractor: extract: content_text: {content_text}")
         user_prompt = self.user_prompt.format(
             content_text=content_text, schema=json_instance_schema
@@ -185,7 +188,9 @@ Generate output in JSON format.
         )
         original_citations = document.include_citations
         document.include_citations = False
-        content_text = formatter.format_document_for_llm(document)
+        content_text = formatter.format_document_for_llm(
+            document, page_numbers=document.page_numbers
+        )
         document.include_citations = original_citations
 
         user_prompt = self.user_prompt.format(
@@ -211,7 +216,9 @@ Generate output in JSON format.
         llm_config: dict[str, Any],
     ) -> dict[str, list[int]]:
         """Ask the LLM which pages each field appears on."""
-        content_text = formatter.format_document_for_llm(document)
+        content_text = formatter.format_document_for_llm(
+            document, page_numbers=document.page_numbers
+        )
         user_prompt = _PASS2_USER_PROMPT.format(
             content_text=content_text,
             pass1_json=pass1_result.model_dump_json(),
@@ -239,6 +246,10 @@ Generate output in JSON format.
     ) -> dict[str, Any]:
         """Line-level grounding restricted to the pages identified in Pass 2."""
         all_pages = sorted({p for pages in page_mapping.values() for p in pages})
+        if document.page_numbers:
+            intersected = [p for p in all_pages if p in document.page_numbers]
+            if intersected:
+                all_pages = intersected
 
         json_instance_schema = stringify_schema(
             pydantic_to_json_instance_schema(

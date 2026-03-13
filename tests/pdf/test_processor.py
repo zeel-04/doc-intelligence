@@ -408,3 +408,75 @@ class TestPDFProcessor:
             llm_config={"model": "original", "temperature": 0.5},
         )
         assert result.data is not None
+
+
+# ---------------------------------------------------------------------------
+# extract — page_numbers propagation
+# ---------------------------------------------------------------------------
+class TestExtractPageNumbersPropagation:
+    """page_numbers passed to extract() is stored on the PDFDocument."""
+
+    def _make_capturing_processor(
+        self,
+        sample_pdf: PDF,
+        fake_llm: FakeLLM,
+        captured: list[PDFDocument],
+    ) -> DocumentProcessor:
+        """Return a processor whose extractor records the document it receives."""
+        from doc_intelligence.base import BaseExtractor, BaseFormatter
+        from doc_intelligence.schemas.core import Document as BaseDoc
+
+        class CapturingExtractor(FakeExtractor):
+            def extract(
+                self,
+                document: BaseDoc,
+                llm_config: dict,
+                extraction_config: dict,
+                formatter: BaseFormatter,
+                response_format: type,
+            ) -> ExtractionResult:
+                captured.append(document)  # type: ignore[arg-type]
+                return super().extract(
+                    document, llm_config, extraction_config, formatter, response_format
+                )
+
+        parsed_doc = PDFDocument(uri="test.pdf", content=sample_pdf)
+        return DocumentProcessor(
+            parser=FakeParser(result=parsed_doc),
+            formatter=FakeFormatter(),
+            extractor=CapturingExtractor(
+                llm=fake_llm,
+                result=ExtractionResult(
+                    data=SimpleExtraction(name="a", age=1),
+                    metadata=None,
+                ),
+            ),
+        )
+
+    def test_page_numbers_propagated_to_document(
+        self, sample_pdf: PDF, fake_llm: FakeLLM
+    ):
+        captured: list[PDFDocument] = []
+        proc = self._make_capturing_processor(sample_pdf, fake_llm, captured)
+        proc.extract(
+            uri="test.pdf",
+            response_format=SimpleExtraction,
+            page_numbers=[0, 1],
+        )
+        assert captured[0].page_numbers == [0, 1]
+
+    def test_page_numbers_none_by_default(self, sample_pdf: PDF, fake_llm: FakeLLM):
+        captured: list[PDFDocument] = []
+        proc = self._make_capturing_processor(sample_pdf, fake_llm, captured)
+        proc.extract(uri="test.pdf", response_format=SimpleExtraction)
+        assert captured[0].page_numbers is None
+
+    def test_page_numbers_single_entry(self, sample_pdf: PDF, fake_llm: FakeLLM):
+        captured: list[PDFDocument] = []
+        proc = self._make_capturing_processor(sample_pdf, fake_llm, captured)
+        proc.extract(
+            uri="test.pdf",
+            response_format=SimpleExtraction,
+            page_numbers=[2],
+        )
+        assert captured[0].page_numbers == [2]

@@ -65,6 +65,7 @@ select = ["I"]
 
 [tool.pyrefly]
 project_excludes = ["**/*.ipynb"]
+search_path = ["notebooks"]
 
 [tool.uv.build-backend]
 module-name = "doc_intelligence"
