@@ -2,8 +2,8 @@
 
 from typing import Any
 
-from .pdf.processor import PDFProcessor
-from .schemas.core import ExtractionResult, PydanticModel
+from doc_intelligence.pdf.processor import PDFProcessor
+from doc_intelligence.schemas.core import ExtractionResult, PydanticModel
 
 
 def extract(

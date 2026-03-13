@@ -8,8 +8,7 @@ import pytest
 from loguru import logger
 
 from doc_intelligence.llm import OllamaLLM
-
-from .conftest import assert_valid_response, get_ollama_model_ids
+from tests_integration.conftest import assert_valid_response, get_ollama_model_ids
 
 _THINKING_PREFIXES = ("qwen3", "deepseek-r1")
 

@@ -4,17 +4,17 @@ from typing import Any
 
 from loguru import logger
 
-from ..base import BaseExtractor, BaseFormatter
-from ..llm import BaseLLM
-from ..pydantic_to_json_instance_schema import (
+from doc_intelligence.base import BaseExtractor, BaseFormatter
+from doc_intelligence.llm import BaseLLM
+from doc_intelligence.pdf.schemas import PDFDocument
+from doc_intelligence.pdf.types import PDFExtractionMode
+from doc_intelligence.pdf.utils import enrich_citations_with_bboxes
+from doc_intelligence.pydantic_to_json_instance_schema import (
     pydantic_to_json_instance_schema,
     stringify_schema,
 )
-from ..schemas.core import Document, ExtractionResult, PydanticModel
-from ..utils import strip_citations
-from .schemas import PDFDocument
-from .types import PDFExtractionMode
-from .utils import enrich_citations_with_bboxes
+from doc_intelligence.schemas.core import Document, ExtractionResult, PydanticModel
+from doc_intelligence.utils import strip_citations
 
 _PASS2_SYSTEM_PROMPT = "Act as an expert in document analysis and page localisation."
 _PASS2_USER_PROMPT = """\

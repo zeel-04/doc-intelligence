@@ -3,8 +3,7 @@
 import pytest
 
 from doc_intelligence.llm import OpenAILLM
-
-from .conftest import assert_valid_response
+from tests_integration.conftest import assert_valid_response
 
 
 # ---------------------------------------------------------------------------

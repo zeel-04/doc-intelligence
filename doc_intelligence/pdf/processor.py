@@ -3,20 +3,24 @@ from typing import Any
 from loguru import logger
 from pydantic import BaseModel
 
-from ..base import (
+from doc_intelligence.base import (
     BaseExtractor,
     BaseFormatter,
     BaseParser,
 )
-from ..config import settings
-from ..llm import BaseLLM, create_llm
-from ..restrictions import check_page_count, check_pdf_size, check_schema_depth
-from ..schemas.core import ExtractionResult, PydanticModel
-from .extractor import DigitalPDFExtractor
-from .formatter import DigitalPDFFormatter
-from .parser import DigitalPDFParser
-from .schemas import PDFDocument, PDFExtractionConfig
-from .types import PDFExtractionMode
+from doc_intelligence.config import settings
+from doc_intelligence.llm import BaseLLM, create_llm
+from doc_intelligence.pdf.extractor import DigitalPDFExtractor
+from doc_intelligence.pdf.formatter import DigitalPDFFormatter
+from doc_intelligence.pdf.parser import DigitalPDFParser
+from doc_intelligence.pdf.schemas import PDFDocument, PDFExtractionConfig
+from doc_intelligence.pdf.types import PDFExtractionMode
+from doc_intelligence.restrictions import (
+    check_page_count,
+    check_pdf_size,
+    check_schema_depth,
+)
+from doc_intelligence.schemas.core import ExtractionResult, PydanticModel
 
 
 class DocumentProcessor:

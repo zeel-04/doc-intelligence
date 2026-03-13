@@ -3,8 +3,7 @@
 import pytest
 
 from doc_intelligence.llm import AnthropicLLM
-
-from .conftest import assert_valid_response
+from tests_integration.conftest import assert_valid_response
 
 
 # ---------------------------------------------------------------------------

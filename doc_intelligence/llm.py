@@ -6,8 +6,8 @@ from loguru import logger
 from openai import OpenAI
 from tenacity import retry, stop_after_attempt
 
-from .base import BaseLLM
-from .config import settings
+from doc_intelligence.base import BaseLLM
+from doc_intelligence.config import settings
 
 
 class OpenAILLM(BaseLLM):
