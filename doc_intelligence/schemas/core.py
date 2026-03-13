@@ -31,8 +31,21 @@ class Document(BaseModel):
     content: BaseModel | None = None
     include_citations: bool = True
     extraction_mode: Enum
-    response: BaseModel | None = None
-    response_metadata: dict[str, Any] | None = None
+
+
+# -------------------------------------
+# Extraction result
+# -------------------------------------
+class ExtractionResult(BaseModel):
+    """Typed result from an extraction pipeline.
+
+    Attributes:
+        data: The extracted Pydantic model instance.
+        metadata: Citation metadata dict, or None if citations are disabled.
+    """
+
+    data: Any
+    metadata: dict[str, Any] | None = None
 
 
 # -------------------------------------

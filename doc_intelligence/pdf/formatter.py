@@ -3,7 +3,6 @@ from loguru import logger
 from ..base import BaseFormatter
 from ..schemas.core import Document
 from .schemas import PDF
-from .types import PDFExtractionMode
 
 
 class DigitalPDFFormatter(BaseFormatter):
@@ -43,22 +42,21 @@ class DigitalPDFFormatter(BaseFormatter):
                 "Make sure to parse the document before formatting."
             )
         pdf_content: PDF = raw_content  # type: ignore[assignment]
+
+        # Build a filtered page view without mutating the original document
         page_numbers = kwargs.get("page_numbers", None)
         if page_numbers and pdf_content.pages:
-            page_numbers.sort()
-            page_numbers = list(set(page_numbers))
-            pdf_content.pages = [
-                page
-                for page_number, page in enumerate(pdf_content.pages)
-                if page_number in page_numbers
+            unique_sorted = sorted(set(page_numbers))
+            pages_to_format = [
+                page for i, page in enumerate(pdf_content.pages) if i in unique_sorted
             ]
-            logger.info(f"Formatting {len(pdf_content.pages)} pages")
-        if document.extraction_mode == PDFExtractionMode.MULTI_PASS:
-            raise NotImplementedError("Multi-pass extraction is not implemented yet")
-        if (
-            document.include_citations
-            and document.extraction_mode == PDFExtractionMode.SINGLE_PASS
-        ):
-            return "\n\n".join(self._format_with_line_numbers(pdf_content))
+            logger.info(f"Formatting {len(pages_to_format)} pages")
         else:
-            return "\n\n".join(self._format_without_line_numbers(pdf_content))
+            pages_to_format = pdf_content.pages
+
+        view = PDF(pages=pages_to_format)
+
+        if document.include_citations:
+            return "\n\n".join(self._format_with_line_numbers(view))
+        else:
+            return "\n\n".join(self._format_without_line_numbers(view))

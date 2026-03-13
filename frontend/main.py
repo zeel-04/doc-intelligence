@@ -117,7 +117,7 @@ with st.sidebar:
 
     model_name = st.selectbox(
         "LLM Model",
-        ["gpt-5", "gpt-5-mini", "gpt-5-nano"],
+        ["gpt-4o", "gpt-4o-mini"],
         index=0,
     )
 
@@ -177,27 +177,22 @@ if extract_btn and pdf_uri:
 
     response_model = build_pydantic_model(schema_dict)
 
-    config = {
-        "response_format": response_model,
-        "llm_config": {
-            "model": model_name,
-        },
-        "extraction_config": {
-            "include_citations": include_citations,
-            "extraction_mode": "single_pass",
-        },
-    }
-
     try:
         with st.spinner("Parsing PDF and extracting data…"):
             llm = OpenAILLM()
-            processor = DocumentProcessor.from_digital_pdf(uri=pdf_uri, llm=llm)
-            result = processor.extract(config)
+            processor = DocumentProcessor.from_digital_pdf(llm=llm)
+            result = processor.extract(
+                uri=pdf_uri,
+                response_format=response_model,
+                include_citations=include_citations,
+                extraction_mode="single_pass",
+                llm_config={"model": model_name},
+            )
 
         st.subheader("3 · Results")
 
-        extracted = result.get("extracted_data")
-        metadata = result.get("metadata")
+        extracted = result.data
+        metadata = result.metadata
 
         if include_citations and metadata:
             tab_data, tab_meta = st.tabs(["Extracted Data", "Citations / Metadata"])

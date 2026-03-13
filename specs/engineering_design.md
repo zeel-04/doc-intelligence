@@ -1,8 +1,8 @@
 # Engineering Design Document — doc_intelligence
 
-**Version:** 1.0
+**Version:** 0.1.4  
 **Status:** Living document
-**Last updated:** 2026-03-11
+**Last updated:** 2026-03-13
 
 ---
 
@@ -18,17 +18,18 @@ doc_intelligence/
 │   ├── parser.py       # PDFParser (ABC), DigitalPDFParser
 │   ├── formatter.py    # DigitalPDFFormatter
 │   ├── extractor.py    # DigitalPDFExtractor
-│   ├── processor.py    # DocumentProcessor
+│   ├── processor.py    # DocumentProcessor, PDFProcessor
 │   ├── schemas.py      # PDF, Line, Page, PDFDocument, PDFExtractionConfig
 │   ├── types.py        # PDFExtractionMode (SINGLE_PASS, MULTI_PASS)
 │   └── utils.py        # enrich_citations_with_bboxes
 ├── schemas/
-│   └── core.py         # Document, BoundingBox, ExtractionConfig, PydanticModel TypeVar
+│   └── core.py         # Document, BoundingBox, ExtractionConfig, ExtractionResult, PydanticModel TypeVar
 ├── base.py             # BaseParser, BaseFormatter, BaseLLM, BaseExtractor
-├── llm.py              # OpenAILLM
+├── llm.py              # OpenAILLM, OllamaLLM, AnthropicLLM, GeminiLLM, create_llm()
+├── extract.py          # Top-level extract() convenience function
 ├── utils.py            # normalize_bounding_box, strip_citations, add_bboxes_to_citation_model, …
 ├── pydantic_to_json_instance_schema.py
-└── config.py           # Bare dict config (to be replaced in Phase 1)
+└── config.py           # pydantic-settings backed configuration
 ```
 
 ### Data flow (single-pass with citations)
@@ -52,7 +53,7 @@ DigitalPDFExtractor.extract()
     → strip_citations(…)                     # unwrap {value, citations} → plain value
     │
     ▼
-{"extracted_data": <PydanticModel instance>, "metadata": <citation dict>}
+ExtractionResult(data=<PydanticModel instance>, metadata=<citation dict>)
 ```
 
 ### Key design decisions already in place
@@ -87,12 +88,15 @@ from pydantic_settings import BaseSettings
 class DocIntelligenceConfig(BaseSettings):
     model_config = SettingsConfigDict(env_prefix="DOC_INTEL_", env_file=".env")
 
-    # LLM defaults
-    default_llm_model: str = "gpt-4o-mini"
+    # Per-provider default models — overridable via DOC_INTEL_<PROVIDER>_DEFAULT_MODEL env vars
+    openai_default_model: str = Field(default="gpt-4o-mini")
+    anthropic_default_model: str = Field(default="claude-sonnet-4-20250514")
+    gemini_default_model: str = Field(default="gemini-2.0-flash")
+    ollama_default_model: str = Field(default="llama3.2")
 
     # Limits
-    max_pdf_size_mb: float = Field(default=500.0)
-    max_pdf_pages: int = Field(default=500)
+    max_pdf_size_mb: float = Field(default=10.0)
+    max_pdf_pages: int = Field(default=100)
     max_schema_depth: int = Field(default=5)
 
     # Async (used in Phase 4, declared here for single source of truth)
@@ -181,19 +185,21 @@ The final `extract()` return shape is unchanged: `{"extracted_data": …, "metad
 
 ### 1.5 Files changed / created
 
-| File | Change |
-|---|---|
-| `doc_intelligence/config.py` | Rewrite with `pydantic-settings` |
-| `doc_intelligence/restrictions.py` | New — limit validators |
+
+| File                                | Change                                                |
+| ----------------------------------- | ----------------------------------------------------- |
+| `doc_intelligence/config.py`        | Rewrite with `pydantic-settings`                      |
+| `doc_intelligence/restrictions.py`  | New — limit validators                                |
 | `doc_intelligence/pdf/extractor.py` | Add `_extract_pass1/2/3`, implement MULTI_PASS branch |
-| `doc_intelligence/pdf/schemas.py` | Add `pass1_result`, `pass2_page_map` to `PDFDocument` |
-| `doc_intelligence/pdf/processor.py` | Call restriction checks at top of `extract()` |
-| `tests/test_restrictions.py` | New |
-| `tests/pdf/test_extractor.py` | Add multi-pass tests |
+| `doc_intelligence/pdf/schemas.py`   | Add `pass1_result`, `pass2_page_map` to `PDFDocument` |
+| `doc_intelligence/pdf/processor.py` | Call restriction checks at top of `extract()`         |
+| `tests/test_restrictions.py`        | New                                                   |
+| `tests/pdf/test_extractor.py`       | Add multi-pass tests                                  |
+
 
 ---
 
-## Phase 2 — Multi-LLM Provider Support
+## Phase 2 — Multi-LLM Provider Support(Completed)
 
 ### 2.1 Goals
 
@@ -243,12 +249,13 @@ Uses the `anthropic` SDK. Only `generate_text` is implemented; `generate_structu
 
 ```python
 class AnthropicLLM(BaseLLM):
-    def __init__(self, api_key: str | None = None):
+    def __init__(self, api_key: str | None = None, model: str | None = None):
+        super().__init__(model=model or settings.anthropic_default_model)
         self.client = anthropic.Anthropic(api_key=api_key)
 
     @retry(stop=stop_after_attempt(3))
     def generate_text(self, system_prompt: str, user_prompt: str, **kwargs) -> str:
-        model = kwargs.pop("model", settings.default_llm_model)
+        model = kwargs.pop("model", self.model)
         response = self.client.messages.create(
             model=model,
             system=system_prompt,
@@ -267,12 +274,13 @@ Uses the `google-genai` SDK (already a project dependency).
 
 ```python
 class GeminiLLM(BaseLLM):
-    def __init__(self, api_key: str | None = None):
+    def __init__(self, api_key: str | None = None, model: str | None = None):
+        super().__init__(model=model or settings.gemini_default_model)
         self.client = genai.Client(api_key=api_key)
 
     @retry(stop=stop_after_attempt(3))
     def generate_text(self, system_prompt: str, user_prompt: str, **kwargs) -> str:
-        model = kwargs.pop("model", settings.default_llm_model)
+        model = kwargs.pop("model", self.model)
         response = self.client.models.generate_content(
             model=model,
             contents=user_prompt,
@@ -285,13 +293,65 @@ class GeminiLLM(BaseLLM):
 
 ### 2.6 Files changed / created
 
-| File | Change |
-|---|---|
-| `doc_intelligence/base.py` | Make `generate_structured_output` non-abstract with `NotImplementedError` default |
-| `doc_intelligence/llm.py` | Add `OllamaLLM`, `AnthropicLLM`, `GeminiLLM` (or split into `doc_intelligence/llms/`) |
-| `tests/test_llm.py` | Add tests for all three providers (using mocks) |
+
+| File                       | Change                                                                                |
+| -------------------------- | ------------------------------------------------------------------------------------- |
+| `doc_intelligence/base.py` | Make `generate_structured_output` non-abstract with `NotImplementedError` default     |
+| `doc_intelligence/llm.py`  | Add `OllamaLLM`, `AnthropicLLM`, `GeminiLLM` (or split into `doc_intelligence/llms/`) |
+| `tests/test_llm.py`        | Add tests for all three providers (using mocks)                                       |
+
 
 > **Note on file organisation:** If `llm.py` grows past ~150 lines, split into `doc_intelligence/llms/__init__.py`, `openai.py`, `ollama.py`, `anthropic.py`, `gemini.py`.
+
+---
+
+- Also update the @docs/ folder according to the features
+
+## Client API Redesign (Completed)
+
+### Goals
+
+- Decouple `DocumentProcessor` from any specific document (remove `document` from `__init__`).
+- Fix the cross-provider bug where a global `default_llm_model = "gpt-4o-mini"` was used as fallback for Anthropic/Gemini/Ollama.
+- Replace untyped `dict[str, Any]` extraction config with typed keyword arguments.
+- Add `ExtractionResult` typed return (`.data` / `.metadata` instead of dict keys).
+- Add `create_llm()` factory function for provider-agnostic LLM creation.
+- Add `PDFProcessor` convenience class and top-level `extract()` one-liner.
+
+### Key changes
+
+
+| Change                        | Details                                                                                                               |
+| ----------------------------- | --------------------------------------------------------------------------------------------------------------------- |
+| `BaseLLM` stores `model`      | Each provider has its own default; per-call override via `kwargs.pop("model", self.model)` — transient, never mutates |
+| `create_llm()` factory        | Registry-based: `create_llm("openai", model="gpt-4o")`                                                                |
+| `ExtractionResult`            | `data: Any`, `metadata: dict                                                                                          |
+| `DocumentProcessor.__init_`_  | Takes `parser`, `formatter`, `extractor` only — no `document`                                                         |
+| `DocumentProcessor.extract()` | Takes `uri`, `response_format`, keyword-only options — creates fresh `PDFDocument` per call                           |
+| `PDFProcessor`                | High-level wrapper accepting `llm` or `provider+model`                                                                |
+| `extract()` top-level         | One-liner: `extract("file.pdf", Schema, provider="openai")`                                                           |
+| `Document` schema cleanup     | Removed dead `response` and `response_metadata` fields                                                                |
+| `config.py` cleanup           | Removed `default_llm_model` (was a cross-provider bug)                                                                |
+
+
+### Three-layer API
+
+```python
+# Layer 1 — one-liner
+from doc_intelligence import extract
+result = extract("invoice.pdf", InvoiceSchema, provider="openai")
+
+# Layer 2 — reusable processor
+from doc_intelligence import PDFProcessor
+proc = PDFProcessor(provider="openai", model="gpt-4o")
+r1 = proc.extract("a.pdf", Schema)
+r2 = proc.extract("b.pdf", Schema)
+
+# Layer 3 — full control
+from doc_intelligence import DocumentProcessor
+proc = DocumentProcessor.from_digital_pdf(llm=my_llm)
+result = proc.extract(uri="a.pdf", response_format=Schema, include_citations=True)
+```
 
 ---
 
@@ -310,14 +370,18 @@ class GeminiLLM(BaseLLM):
 
 The existing digital components keep their names. New OCR components are named to be explicit:
 
-| Component | Digital (existing) | Scanned (new) |
-|---|---|---|
-| Parser | `DigitalPDFParser` | `ScannedPDFParser` |
-| Layout detector | — | `BaseLayoutDetector` (ABC) + `PaddleLayoutDetector` |
-| OCR engine | — | `BaseOCREngine` (ABC) + `PaddleOCREngine` |
-| Formatter | `DigitalPDFFormatter` | *reused as-is* |
-| Extractor | `DigitalPDFExtractor` | *reused as-is* |
-| Processor factory | `DocumentProcessor.from_digital_pdf()` | `DocumentProcessor.from_scanned_pdf()` |
+
+| Component         | Digital (existing)                     | Scanned (new)                                       |
+| ----------------- | -------------------------------------- | --------------------------------------------------- |
+| Parser            | `DigitalPDFParser`                     | `ScannedPDFParser`                                  |
+| Layout detector   | —                                      | `BaseLayoutDetector` (ABC) + `PaddleLayoutDetector` |
+| OCR engine        | —                                      | `BaseOCREngine` (ABC) + `PaddleOCREngine`           |
+| Formatter         | `DigitalPDFFormatter`                  | *reused as-is*                                      |
+| Extractor         | `DigitalPDFExtractor`                  | *reused as-is*                                      |
+| Processor factory | `DocumentProcessor.from_digital_pdf()` | `DocumentProcessor.from_scanned_pdf()`              |
+
+
+> Note: When Reusing formatter and extractor, consider renaming the prefix from digital to generalized naming.
 
 ---
 
@@ -467,16 +531,18 @@ def from_scanned_pdf(
 
 ### 3.8 Files changed / created
 
-| File | Change |
-|---|---|
-| `doc_intelligence/ocr/__init__.py` | New package |
-| `doc_intelligence/ocr/base.py` | New — `BaseLayoutDetector`, `BaseOCREngine` |
-| `doc_intelligence/ocr/paddle.py` | New — `PaddleLayoutDetector`, `PaddleOCREngine` |
-| `doc_intelligence/pdf/ocr_parser.py` | New — `ScannedPDFParser` |
-| `doc_intelligence/pdf/processor.py` | Add `from_scanned_pdf()` factory |
-| `tests/ocr/test_base.py` | New |
-| `tests/ocr/test_paddle.py` | New (mocked PaddleOCR) |
-| `tests/pdf/test_ocr_parser.py` | New |
+
+| File                                 | Change                                          |
+| ------------------------------------ | ----------------------------------------------- |
+| `doc_intelligence/ocr/__init__.py`   | New package                                     |
+| `doc_intelligence/ocr/base.py`       | New — `BaseLayoutDetector`, `BaseOCREngine`     |
+| `doc_intelligence/ocr/paddle.py`     | New — `PaddleLayoutDetector`, `PaddleOCREngine` |
+| `doc_intelligence/pdf/ocr_parser.py` | New — `ScannedPDFParser`                        |
+| `doc_intelligence/pdf/processor.py`  | Add `from_scanned_pdf()` factory                |
+| `tests/ocr/test_base.py`             | New                                             |
+| `tests/ocr/test_paddle.py`           | New (mocked PaddleOCR)                          |
+| `tests/pdf/test_ocr_parser.py`       | New                                             |
+
 
 ---
 
@@ -605,14 +671,16 @@ The callback is fire-and-forget (`asyncio.create_task`) so a slow callback canno
 
 ### 4.6 Files changed / created
 
-| File | Change |
-|---|---|
-| `doc_intelligence/base.py` | Add `agenerate_text` default to `BaseLLM` |
-| `doc_intelligence/llm.py` | Override `agenerate_text` in `OpenAILLM`, `AnthropicLLM` with native async |
-| `doc_intelligence/pdf/async_processor.py` | New — `AsyncDocumentProcessor` |
-| `doc_intelligence/batch.py` | New — `batch_extract` |
-| `tests/pdf/test_async_processor.py` | New |
-| `tests/test_batch.py` | New |
+
+| File                                      | Change                                                                     |
+| ----------------------------------------- | -------------------------------------------------------------------------- |
+| `doc_intelligence/base.py`                | Add `agenerate_text` default to `BaseLLM`                                  |
+| `doc_intelligence/llm.py`                 | Override `agenerate_text` in `OpenAILLM`, `AnthropicLLM` with native async |
+| `doc_intelligence/pdf/async_processor.py` | New — `AsyncDocumentProcessor`                                             |
+| `doc_intelligence/batch.py`               | New — `batch_extract`                                                      |
+| `tests/pdf/test_async_processor.py`       | New                                                                        |
+| `tests/test_batch.py`                     | New                                                                        |
+
 
 ---
 
@@ -634,16 +702,19 @@ This keeps the base install small. A user who only needs OpenAI + digital PDFs d
 
 ### Error taxonomy
 
-| Situation | Exception |
-|---|---|
-| File too large | `ValueError: PDF exceeds max size (…MB > …MB)` |
-| Too many pages | `ValueError: PDF has … pages, limit is …` |
-| Schema too deep | `ValueError: Schema depth … exceeds limit …` |
-| LLM parse failure (after retries) | `ExtractionError` (custom, Phase 1+) |
-| OCR engine failure | `OCRError` (custom, Phase 3+) |
+
+| Situation                         | Exception                                      |
+| --------------------------------- | ---------------------------------------------- |
+| File too large                    | `ValueError: PDF exceeds max size (…MB > …MB)` |
+| Too many pages                    | `ValueError: PDF has … pages, limit is …`      |
+| Schema too deep                   | `ValueError: Schema depth … exceeds limit …`   |
+| LLM parse failure (after retries) | `ExtractionError` (custom, Phase 1+)           |
+| OCR engine failure                | `OCRError` (custom, Phase 3+)                  |
+
 
 ### Testing conventions (unchanged from baseline)
 
 - Mirror structure: `tests/ocr/`, `tests/pdf/test_async_processor.py`, etc.
 - All OCR and LLM calls are mocked; no network in unit tests.
 - 100% coverage target on all new modules.
+

@@ -8,28 +8,36 @@ from pydantic import BaseModel, Field
 from doc_intelligence.base import BaseExtractor, BaseFormatter, BaseLLM, BaseParser
 from doc_intelligence.pdf.schemas import PDF, Line, Page, PDFDocument
 from doc_intelligence.pdf.types import PDFExtractionMode
-from doc_intelligence.schemas.core import BoundingBox, Document, PydanticModel
+from doc_intelligence.schemas.core import (
+    BoundingBox,
+    Document,
+    ExtractionResult,
+    PydanticModel,
+)
 
 
 # ---------------------------------------------------------------------------
 # Fake ABC implementations
 # ---------------------------------------------------------------------------
 class FakeLLM(BaseLLM):
-    """A fake LLM that returns canned text responses without making API calls."""
+    """A fake LLM that returns canned text responses without making API calls.
 
-    def __init__(self, text_response: str = '{"name": "test"}'):
-        self.text_response = text_response
-        self.last_call_kwargs: dict[str, Any] = {}
+    Pass ``responses`` to cycle through multiple replies in call order.
+    Falls back to ``text_response`` once the list is exhausted.
+    """
 
-    def generate_structured_output(
+    def __init__(
         self,
-        model: str,
-        messages: list[dict[str, str]],
-        reasoning: Any,
-        output_format: type[PydanticModel],
-        openai_text: dict[str, Any] | None = None,
-    ) -> PydanticModel | None:
-        return None
+        text_response: str = '{"name": "test"}',
+        responses: list[str] | None = None,
+        model: str = "fake-model",
+    ):
+        super().__init__(model=model)
+        self.text_response = text_response
+        self.responses = responses
+        self._call_index: int = 0
+        self.last_call_kwargs: dict[str, Any] = {}
+        self.all_calls: list[dict[str, Any]] = []
 
     def generate_text(
         self,
@@ -37,11 +45,17 @@ class FakeLLM(BaseLLM):
         user_prompt: str,
         **kwargs,
     ) -> str:
-        self.last_call_kwargs = {
+        call_kwargs = {
             "system_prompt": system_prompt,
             "user_prompt": user_prompt,
             **kwargs,
         }
+        self.last_call_kwargs = call_kwargs
+        self.all_calls.append(call_kwargs)
+        if self.responses is not None and self._call_index < len(self.responses):
+            response = self.responses[self._call_index]
+            self._call_index += 1
+            return response
         return self.text_response
 
 
@@ -52,7 +66,7 @@ class FakeParser(BaseParser):
         self.result = result
         self.call_count = 0
 
-    def parse(self, document: Document) -> PDFDocument:  # type: ignore[override]
+    def parse(self, document: Document) -> PDFDocument:
         self.call_count += 1
         if self.result is not None:
             return self.result  # type: ignore[return-value]
@@ -70,9 +84,9 @@ class FakeFormatter(BaseFormatter):
 
 
 class FakeExtractor(BaseExtractor):
-    """A fake extractor that returns a pre-set result."""
+    """A fake extractor that returns a pre-set ExtractionResult."""
 
-    def __init__(self, llm: BaseLLM, result: dict[str, Any] | None = None):
+    def __init__(self, llm: BaseLLM, result: ExtractionResult | None = None):
         super().__init__(llm)
         self.result = result
 
@@ -83,8 +97,8 @@ class FakeExtractor(BaseExtractor):
         extraction_config: dict[str, Any],
         formatter: BaseFormatter,
         response_format: type[PydanticModel],
-    ) -> dict[str, Any] | None:
-        return self.result
+    ) -> ExtractionResult:
+        return self.result  # type: ignore[return-value]
 
 
 # ---------------------------------------------------------------------------
@@ -219,7 +233,7 @@ def fake_formatter() -> FakeFormatter:
 def fake_extractor(fake_llm: FakeLLM) -> FakeExtractor:
     return FakeExtractor(
         llm=fake_llm,
-        result={"extracted_data": None, "metadata": None},
+        result=ExtractionResult(data=None, metadata=None),
     )
 
 

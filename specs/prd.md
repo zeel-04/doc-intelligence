@@ -1,8 +1,8 @@
 # Product Requirements Document — doc_intelligence
 
-**Version:** 1.0
+**Version:** 0.1.4  
 **Status:** Living document
-**Last updated:** 2026-03-11
+**Last updated:** 2026-03-13
 
 ---
 
@@ -123,11 +123,13 @@ The library reduces the document to only the pages identified in Pass 2 and send
 
 The library enforces configurable hard limits to prevent runaway usage and to make extraction predictable in production.
 
-| Limit | Default | Description |
-|---|---|---|
-| Max PDF file size | 500 MB | PDFs above this size are rejected before parsing. |
-| Max pages processed | Configurable | Pages beyond the limit are not parsed or sent to the LLM. |
-| Max schema nesting depth | 5 | Pydantic schemas deeper than this raise an error at extraction time. |
+
+| Limit                    | Default      | Description                                                          |
+| ------------------------ | ------------ | -------------------------------------------------------------------- |
+| Max PDF file size        | 10 MB        | PDFs above this size are rejected before parsing.                    |
+| Max pages processed      | Configurable | Pages beyond the limit are not parsed or sent to the LLM.            |
+| Max schema nesting depth | 5            | Pydantic schemas deeper than this raise an error at extraction time. |
+
 
 Limits are defined in a central configuration file (`config.py`) so they can be changed once for the whole application. Violations raise a descriptive `ValueError` before any LLM call is made, so they fail fast and cheaply.
 
@@ -156,9 +158,7 @@ Many real-world documents are scanned images embedded in PDF containers. pdfplum
 **The OCR pipeline has three steps:**
 
 1. **Layout detection:** A layout model (PaddleOCR's layout model by default) runs on each page image and identifies distinct regions — paragraphs, tables, headers, figures. The library is designed so the layout model can be swapped without changing the rest of the pipeline.
-
 2. **OCR per region:** Each detected region is sent to an OCR engine (PaddleOCR by default, also swappable) to extract its text and character-level bounding boxes. Regions within a page are processed in parallel to minimize latency.
-
 3. **Assembly:** The OCR results are assembled into the standard `PDF → Page → Line` schema. From this point forward, the scanned PDF goes through the same formatter and extractor as a digital PDF.
 
 **Naming:** The digital parser remains `DigitalPDFParser`. The new OCR-based parser is `ScannedPDFParser`. Both produce `PDFDocument` objects; a `DocumentProcessor.from_scanned_pdf()` factory creates the appropriate pipeline.
@@ -214,6 +214,7 @@ New document types follow the same folder pattern (`doc_intelligence/<type>/`). 
 The following are not planned for the current roadmap but inform design decisions to avoid dead ends.
 
 **Third-party integrations:**
+
 - *Landing AI* — plug in as an alternative layout detection / OCR backend.
 - *Docling* — use as an alternative PDF parsing backend, particularly for complex table extraction.
 

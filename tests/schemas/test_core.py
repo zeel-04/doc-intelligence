@@ -10,6 +10,7 @@ from doc_intelligence.schemas.core import (
     BoundingBox,
     Document,
     ExtractionConfig,
+    ExtractionResult,
 )
 
 
@@ -85,8 +86,6 @@ class TestDocument:
         doc = Document(uri="test.pdf", extraction_mode=_DummyMode.A)
         assert doc.content is None
         assert doc.include_citations is True
-        assert doc.response is None
-        assert doc.response_metadata is None
 
     def test_include_citations_override(self):
         doc = Document(
@@ -104,13 +103,48 @@ class TestDocument:
         with pytest.raises(ValidationError):
             Document(uri="test.pdf")  # type: ignore[call-arg]
 
-    def test_response_metadata_accepts_dict(self):
-        doc = Document(
-            uri="test.pdf",
-            extraction_mode=_DummyMode.A,
-            response_metadata={"key": "value"},
+
+# ---------------------------------------------------------------------------
+# ExtractionResult
+# ---------------------------------------------------------------------------
+class TestExtractionResult:
+    def test_construction_with_data_only(self):
+        result = ExtractionResult(data={"name": "Alice"})
+        assert result.data == {"name": "Alice"}
+        assert result.metadata is None
+
+    def test_construction_with_data_and_metadata(self):
+        result = ExtractionResult(
+            data={"name": "Alice"},
+            metadata={"name": {"citations": [{"page": 0}]}},
         )
-        assert doc.response_metadata == {"key": "value"}
+        assert result.data == {"name": "Alice"}
+        assert result.metadata is not None
+        assert "name" in result.metadata
+
+    def test_data_accepts_pydantic_model(self):
+        from pydantic import BaseModel
+
+        class Sample(BaseModel):
+            name: str
+
+        model = Sample(name="Bob")
+        result = ExtractionResult(data=model)
+        assert result.data.name == "Bob"
+
+    def test_data_accepts_none(self):
+        result = ExtractionResult(data=None)
+        assert result.data is None
+
+    def test_metadata_defaults_to_none(self):
+        result = ExtractionResult(data="anything")
+        assert result.metadata is None
+
+    def test_model_dump(self):
+        result = ExtractionResult(data={"key": "val"}, metadata={"field": {"page": 0}})
+        dumped = result.model_dump()
+        assert dumped["data"] == {"key": "val"}
+        assert dumped["metadata"] == {"field": {"page": 0}}
 
 
 # ---------------------------------------------------------------------------

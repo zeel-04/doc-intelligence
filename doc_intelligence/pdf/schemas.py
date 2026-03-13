@@ -24,6 +24,8 @@ class PDF(BaseModel):
 class PDFDocument(Document):
     content: PDF | None = None
     extraction_mode: Enum = PDFExtractionMode.SINGLE_PASS
+    pass1_result: BaseModel | None = None
+    pass2_page_map: dict[str, list[int]] | None = None
 
 
 class PDFExtractionConfig(ExtractionConfig):

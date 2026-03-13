@@ -12,14 +12,14 @@ A library for parsing, formatting, and processing documents that can be used to 
 - Automatic citation tracking with page numbers, line numbers, and bounding boxes
 - Support for digital PDFs (local files and URLs)
 - Type-safe data models using Pydantic
-- OpenAI integration with support for reasoning models
+- Multi-provider LLM support: OpenAI, Anthropic, Gemini, Ollama
 
 ## Installation
 
 ### Requirements
 
 - Python >= 3.10
-- OpenAI API key
+- An API key for your chosen LLM provider (OpenAI, Anthropic, or Gemini) — or a local Ollama server
 
 ### Install with uv
 
@@ -35,7 +35,7 @@ pip install doc-intelligence
 
 ## Quick Start
 
-Set up your OpenAI API key:
+Set up your API key (example with OpenAI):
 
 ```bash
 echo "OPENAI_API_KEY=your-api-key-here" > .env
@@ -45,72 +45,55 @@ Here's a simple example to extract structured data from a PDF:
 
 ```python
 from dotenv import load_dotenv
-from doc_intelligence.processer import DocumentProcessor
-from doc_intelligence.llm import OpenAILLM
 from pydantic import BaseModel
+
+from doc_intelligence import PDFProcessor
 
 # Load environment variables
 load_dotenv()
-
-# Initialize the LLM
-llm = OpenAILLM()
-
-# Create a processor from a PDF file (local or URL)
-processor = DocumentProcessor.from_digital_pdf(
-    uri="https://example-files.online-convert.com/document/pdf/example.pdf",  # Can also be a local path
-    llm=llm,
-)
 
 # Define your data model
 class License(BaseModel):
     license_name: str
 
-# Configure extraction with citations
-config = {
-    "response_format": License,
-    "llm_config": {
-        "model": "gpt-5-mini",
-        "reasoning": {"effort": "minimal"},
-    },
-    "extraction_config": {
-        "include_citations": True,
-        "extraction_mode": "single_pass",
-        "page_numbers": [0, 1],  # Optional: specify which pages to process
-    }
-}
-
-# Extract structured data
-response = processor.extract(config)
+# Create a processor and extract in two lines
+processor = PDFProcessor(provider="openai")
+result = processor.extract(
+    uri="https://example-files.online-convert.com/document/pdf/example.pdf",
+    response_format=License,
+    include_citations=True,
+    extraction_mode="single_pass",
+    model="gpt-4o-mini",
+)
 
 # Access the extracted data and citations
-extracted_data = response["extracted_data"]
-metadata = response["metadata"]
-print(f"Extracted data: {extracted_data}")
-print(f"Metadata: {metadata}")
+print(f"Extracted data: {result.data}")
+print(f"Metadata: {result.metadata}")
 ```
 
 ### Sample Output
 
-The `extract` method returns a dictionary containing the extracted data and metadata with citation information:
+The `extract` method returns an `ExtractionResult` with `.data` and `.metadata` attributes:
 
 ```python
-{
-    'extracted_data': License(license_name='Attribution-ShareAlike 3.0 Unported'),
-    'metadata': {
-        'license_name': {
-            'value': 'Attribution-ShareAlike 3.0 Unported',
-            'citations': [{
-                'page': 0,
-                'bboxes': [{
-                    'x0': 0.20106913928643427,
-                    'top': 0.8587326111744586,
-                    'x1': 0.5648947389639185,
-                    'bottom': 0.8718454960091222
-                }]
-            }]
-        }
-    }
-}
+result.data
+# License(license_name='Attribution-ShareAlike 3.0 Unported')
+
+result.metadata
+# {
+#     'license_name': {
+#         'value': 'Attribution-ShareAlike 3.0 Unported',
+#         'citations': [{
+#             'page': 0,
+#             'bboxes': [{
+#                 'x0': 0.201,
+#                 'top': 0.859,
+#                 'x1': 0.565,
+#                 'bottom': 0.872
+#             }]
+#         }]
+#     }
+# }
 ```
 
 ## Documentation
@@ -128,5 +111,5 @@ Prerequisites:
 git clone https://github.com/zeel-04/doc-intelligence.git
 cd doc_intelligence
 uv venv
-uv sync 
+uv sync
 ```

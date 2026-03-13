@@ -46,20 +46,9 @@ class TestIncompleteSubclassRaises:
         with pytest.raises(TypeError):
             BadFormatter()  # type: ignore[abstract]
 
-    def test_llm_missing_generate_structured_output(self):
-        class BadLLM(BaseLLM):
-            def generate_text(self, system_prompt, user_prompt, **kwargs):
-                return ""
-
-        with pytest.raises(TypeError):
-            BadLLM()  # type: ignore[abstract]
-
     def test_llm_missing_generate_text(self):
         class BadLLM(BaseLLM):
-            def generate_structured_output(
-                self, model, messages, reasoning, output_format, openai_text=None
-            ):
-                return None
+            pass
 
         with pytest.raises(TypeError):
             BadLLM()  # type: ignore[abstract]
@@ -70,6 +59,35 @@ class TestIncompleteSubclassRaises:
 
         with pytest.raises(TypeError):
             BadExtractor(fake_llm)  # type: ignore[abstract]
+
+
+# ---------------------------------------------------------------------------
+# BaseLLM.generate_structured_output default
+# ---------------------------------------------------------------------------
+class TestBaseLLMGenerateStructuredOutput:
+    def test_raises_not_implemented(self, fake_llm: FakeLLM):
+        from pydantic import BaseModel
+
+        class MyModel(BaseModel):
+            value: str
+
+        with pytest.raises(
+            NotImplementedError, match="does not support structured output"
+        ):
+            fake_llm.generate_structured_output(
+                system_prompt="sys",
+                user_prompt="usr",
+                response_format=MyModel,
+            )
+
+    def test_error_message_includes_class_name(self, fake_llm: FakeLLM):
+        from pydantic import BaseModel
+
+        class MyModel(BaseModel):
+            value: str
+
+        with pytest.raises(NotImplementedError, match="FakeLLM"):
+            fake_llm.generate_structured_output("s", "u", MyModel)
 
 
 # ---------------------------------------------------------------------------
