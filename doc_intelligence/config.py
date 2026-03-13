@@ -9,8 +9,11 @@ class DocIntelligenceConfig(BaseSettings):
         env_prefix="DOC_INTEL_", env_file=".env", extra="ignore"
     )
 
-    # LLM defaults
-    default_llm_model: str = "gpt-4o-mini"
+    # Default models — overridable via DOC_INTEL_<PROVIDER>_DEFAULT_MODEL env vars
+    openai_default_model: str = Field(default="gpt-4o-mini")
+    anthropic_default_model: str = Field(default="claude-sonnet-4-20250514")
+    gemini_default_model: str = Field(default="gemini-2.0-flash")
+    ollama_default_model: str = Field(default="llama3.2")
 
     # Limits
     max_pdf_size_mb: float = Field(default=10.0)

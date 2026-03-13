@@ -10,7 +10,7 @@ from ..pydantic_to_json_instance_schema import (
     pydantic_to_json_instance_schema,
     stringify_schema,
 )
-from ..schemas.core import Document, PydanticModel
+from ..schemas.core import Document, ExtractionResult, PydanticModel
 from ..utils import strip_citations
 from .schemas import PDFDocument
 from .types import PDFExtractionMode
@@ -75,7 +75,7 @@ Generate output in JSON format.
         extraction_config: dict[str, Any],
         formatter: BaseFormatter,
         response_format: type[PydanticModel],
-    ) -> dict[str, Any]:
+    ) -> ExtractionResult:
         if document.extraction_mode == PDFExtractionMode.SINGLE_PASS:
             return self._run_single_pass(
                 document, formatter, response_format, llm_config
@@ -98,7 +98,7 @@ Generate output in JSON format.
         formatter: BaseFormatter,
         response_format: type[PydanticModel],
         llm_config: dict[str, Any],
-    ) -> dict[str, Any]:
+    ) -> ExtractionResult:
         json_instance_schema = stringify_schema(
             pydantic_to_json_instance_schema(
                 response_format,
@@ -129,10 +129,10 @@ Generate output in JSON format.
         else:
             response_metadata = None
 
-        return {
-            "extracted_data": response_format(**response_dict),
-            "metadata": response_metadata,
-        }
+        return ExtractionResult(
+            data=response_format(**response_dict),
+            metadata=response_metadata,
+        )
 
     # ------------------------------------------------------------------
     # Multi-pass orchestration
@@ -144,7 +144,7 @@ Generate output in JSON format.
         formatter: BaseFormatter,
         response_format: type[PydanticModel],
         llm_config: dict[str, Any],
-    ) -> dict[str, Any]:
+    ) -> ExtractionResult:
         # Pass 1 — raw extraction (no citations)
         pass1_result = self._extract_pass1(
             document, formatter, response_format, llm_config
@@ -153,7 +153,7 @@ Generate output in JSON format.
         logger.debug(f"DigitalPDFExtractor: multi-pass: pass1 complete: {pass1_result}")
 
         if not document.include_citations:
-            return {"extracted_data": pass1_result, "metadata": None}
+            return ExtractionResult(data=pass1_result, metadata=None)
 
         # Pass 2 — page grounding
         page_map = self._extract_pass2(document, formatter, pass1_result, llm_config)
@@ -166,7 +166,7 @@ Generate output in JSON format.
         )
         logger.debug("DigitalPDFExtractor: multi-pass: pass3 complete")
 
-        return {"extracted_data": pass1_result, "metadata": metadata}
+        return ExtractionResult(data=pass1_result, metadata=metadata)
 
     # ------------------------------------------------------------------
     # Pass 1 — raw extraction without citations

@@ -62,6 +62,35 @@ class TestIncompleteSubclassRaises:
 
 
 # ---------------------------------------------------------------------------
+# BaseLLM.generate_structured_output default
+# ---------------------------------------------------------------------------
+class TestBaseLLMGenerateStructuredOutput:
+    def test_raises_not_implemented(self, fake_llm: FakeLLM):
+        from pydantic import BaseModel
+
+        class MyModel(BaseModel):
+            value: str
+
+        with pytest.raises(
+            NotImplementedError, match="does not support structured output"
+        ):
+            fake_llm.generate_structured_output(
+                system_prompt="sys",
+                user_prompt="usr",
+                response_format=MyModel,
+            )
+
+    def test_error_message_includes_class_name(self, fake_llm: FakeLLM):
+        from pydantic import BaseModel
+
+        class MyModel(BaseModel):
+            value: str
+
+        with pytest.raises(NotImplementedError, match="FakeLLM"):
+            fake_llm.generate_structured_output("s", "u", MyModel)
+
+
+# ---------------------------------------------------------------------------
 # BaseExtractor __init__ side effects
 # ---------------------------------------------------------------------------
 class TestBaseExtractorInit:

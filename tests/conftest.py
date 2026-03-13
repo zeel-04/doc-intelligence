@@ -8,7 +8,12 @@ from pydantic import BaseModel, Field
 from doc_intelligence.base import BaseExtractor, BaseFormatter, BaseLLM, BaseParser
 from doc_intelligence.pdf.schemas import PDF, Line, Page, PDFDocument
 from doc_intelligence.pdf.types import PDFExtractionMode
-from doc_intelligence.schemas.core import BoundingBox, Document, PydanticModel
+from doc_intelligence.schemas.core import (
+    BoundingBox,
+    Document,
+    ExtractionResult,
+    PydanticModel,
+)
 
 
 # ---------------------------------------------------------------------------
@@ -25,7 +30,9 @@ class FakeLLM(BaseLLM):
         self,
         text_response: str = '{"name": "test"}',
         responses: list[str] | None = None,
+        model: str = "fake-model",
     ):
+        super().__init__(model=model)
         self.text_response = text_response
         self.responses = responses
         self._call_index: int = 0
@@ -77,9 +84,9 @@ class FakeFormatter(BaseFormatter):
 
 
 class FakeExtractor(BaseExtractor):
-    """A fake extractor that returns a pre-set result."""
+    """A fake extractor that returns a pre-set ExtractionResult."""
 
-    def __init__(self, llm: BaseLLM, result: dict[str, Any] | None = None):
+    def __init__(self, llm: BaseLLM, result: ExtractionResult | None = None):
         super().__init__(llm)
         self.result = result
 
@@ -90,7 +97,7 @@ class FakeExtractor(BaseExtractor):
         extraction_config: dict[str, Any],
         formatter: BaseFormatter,
         response_format: type[PydanticModel],
-    ) -> dict[str, Any]:
+    ) -> ExtractionResult:
         return self.result  # type: ignore[return-value]
 
 
@@ -226,7 +233,7 @@ def fake_formatter() -> FakeFormatter:
 def fake_extractor(fake_llm: FakeLLM) -> FakeExtractor:
     return FakeExtractor(
         llm=fake_llm,
-        result={"extracted_data": None, "metadata": None},
+        result=ExtractionResult(data=None, metadata=None),
     )
 
 

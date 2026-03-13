@@ -112,8 +112,6 @@ class TestPDFDocument:
     def test_inherits_document_defaults(self):
         doc = PDFDocument(uri="test.pdf")
         assert doc.include_citations is True
-        assert doc.response is None
-        assert doc.response_metadata is None
 
     def test_missing_uri_raises(self):
         with pytest.raises(ValidationError):

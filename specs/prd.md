@@ -1,8 +1,8 @@
 # Product Requirements Document — doc_intelligence
 
-**Version:** 1.1
+**Version:** 0.1.4  
 **Status:** Living document
-**Last updated:** 2026-03-11
+**Last updated:** 2026-03-13
 
 ---
 

@@ -8,23 +8,25 @@
 
 ```
 doc_intelligence/
-├── pdf/                  # All PDF-specific logic
-│   ├── parser.py         # DigitalPDFParser
-│   ├── extractor.py      # DigitalPDFExtractor
-│   ├── formatter.py      # DigitalPDFFormatter
-│   ├── processor.py      # DocumentProcessor (PDF pipeline)
-│   ├── schemas.py        # PDF, Line, Page, PDFDocument, PDFExtractionConfig
-│   ├── types.py          # PDFExtractionMode
-│   └── utils.py          # enrich_citations_with_bboxes
+├── pdf/                    # All PDF-specific logic
+│   ├── parser.py           # PDFParser (abstract), DigitalPDFParser — parse PDFs into structured PDFDocument objects
+│   ├── extractor.py        # DigitalPDFExtractor — single-pass & multi-pass extraction with citation enrichment
+│   ├── formatter.py        # DigitalPDFFormatter — format PDF content for LLM consumption with line numbers
+│   ├── processor.py        # DocumentProcessor (reusable pipeline), PDFProcessor (convenience wrapper with LLM factory)
+│   ├── schemas.py          # Line, Page, PDF, PDFDocument, PDFExtractionConfig — PDF structure models
+│   ├── types.py            # PDFExtractionMode enum (SINGLE_PASS, MULTI_PASS)
+│   └── utils.py            # enrich_citations_with_bboxes() — add bounding boxes to citation metadata
 ├── schemas/
-│   └── core.py           # Shared: BoundingBox, Document, ExtractionConfig
-├── base.py               # Abstract bases: BaseParser, BaseFormatter, BaseLLM, BaseExtractor
-├── llm.py                # OpenAILLM
-├── utils.py              # Generic utilities: normalize_bounding_box, strip_citations, etc.
-├── config.py             # Configuration
-└── pydantic_to_json_instance_schema.py
+│   └── core.py             # BoundingBox, BaseCitation, Document, ExtractionResult, ExtractionConfig, PydanticModel TypeVar
+├── base.py                 # Abstract bases: BaseParser, BaseFormatter, BaseLLM, BaseExtractor
+├── llm.py                  # OpenAILLM, OllamaLLM, AnthropicLLM, GeminiLLM + create_llm() factory
+├── extract.py              # extract() — top-level one-liner convenience function wrapping PDFProcessor
+├── restrictions.py         # check_pdf_size(), check_page_count(), check_schema_depth() — hard-limit validators
+├── config.py               # DocIntelligenceConfig — per-provider default models, size/page/depth limits, async settings
+├── utils.py                # normalize/denormalize bounding boxes, strip_citations, find_citation_fields, etc.
+└── pydantic_to_json_instance_schema.py  # Convert Pydantic models to JSON instance schemas with citation wrappers
 
-tests/                    # Mirrors doc_intelligence/ structure exactly
+tests/                      # Mirrors doc_intelligence/ structure exactly
 ├── pdf/
 │   ├── test_parser.py
 │   ├── test_extractor.py
@@ -35,8 +37,13 @@ tests/                    # Mirrors doc_intelligence/ structure exactly
 │   └── test_utils.py
 ├── schemas/
 │   └── test_core.py
-├── conftest.py           # Shared fixtures (FakeLLM, FakeParser, sample_pdf, etc.)
-└── test_base.py, test_llm.py, test_utils.py, ...
+├── conftest.py             # Shared fixtures: FakeLLM, FakeParser, FakeExtractor, sample_pdf, etc.
+├── test_base.py
+├── test_llm.py
+├── test_extract.py
+├── test_restrictions.py
+├── test_utils.py
+└── test_pydantic_to_json_instance_schema.py
 ```
 
 **Rule:** New document types (e.g. `docx/`, `image/`) get their own folder under `doc_intelligence/` with the same internal layout as `pdf/`.
