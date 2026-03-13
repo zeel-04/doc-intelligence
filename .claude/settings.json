@@ -39,8 +39,6 @@
         "Bash(grep *)"
       ],
       "deny": [
-        "Bash(git push *)",
-        "Bash(uv publish *)",
         "Read(**/.env)",
         "Read(**/.env.*)",
         "Edit(**/.env)",
