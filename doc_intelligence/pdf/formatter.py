@@ -1,8 +1,8 @@
 from loguru import logger
 
-from ..base import BaseFormatter
-from ..schemas.core import Document
-from .schemas import PDF
+from doc_intelligence.base import BaseFormatter
+from doc_intelligence.pdf.schemas import PDF
+from doc_intelligence.schemas.core import Document
 
 
 class DigitalPDFFormatter(BaseFormatter):

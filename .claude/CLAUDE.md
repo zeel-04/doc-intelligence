@@ -102,6 +102,10 @@ uv run pyrefly check .        # type checking
 - Raise `ValueError` / `TypeError` with descriptive messages.
 - Use `tenacity` for retry logic on LLM/network calls.
 
+### General Rules
+
+- Always use absolute imports
+
 ## Testing Conventions
 
 - **Mirror structure:** every `doc_intelligence/foo/bar.py` has a corresponding `tests/foo/test_bar.py`.

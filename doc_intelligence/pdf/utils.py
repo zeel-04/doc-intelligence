@@ -1,7 +1,7 @@
 from typing import Any
 
-from ..schemas.core import Document
-from .schemas import PDF
+from doc_intelligence.pdf.schemas import PDF
+from doc_intelligence.schemas.core import Document
 
 
 def enrich_citations_with_bboxes(

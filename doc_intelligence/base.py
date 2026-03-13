@@ -3,7 +3,7 @@ from typing import Any
 
 from langchain_core.output_parsers import JsonOutputParser
 
-from .schemas.core import Document, ExtractionResult, PydanticModel
+from doc_intelligence.schemas.core import Document, ExtractionResult, PydanticModel
 
 
 class BaseParser(ABC):

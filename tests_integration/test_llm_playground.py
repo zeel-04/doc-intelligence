@@ -90,7 +90,7 @@ class TestLLMPlayground:
 
     def test_playground(self) -> None:
         """Send a single prompt and log the full response."""
-        from .conftest import _get_ollama_models
+        from tests_integration.conftest import _get_ollama_models
 
         ollama_models = _get_ollama_models() if PROVIDER == "ollama" else []
         llm = _make_llm(PROVIDER, ollama_models)

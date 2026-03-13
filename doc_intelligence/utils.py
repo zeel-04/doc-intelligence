@@ -2,7 +2,7 @@ from typing import Any, get_args, get_origin
 
 from pydantic import BaseModel, create_model
 
-from .schemas.core import BoundingBox
+from doc_intelligence.schemas.core import BoundingBox
 
 CITATION_DESCRIPTION = """This is used to cite the page number and line number where the information is mentioned in the document.
 For example:
