@@ -1,7 +1,7 @@
 # Project Status
 
 > Tracks implementation progress against the [Engineering Design](engineering_design.md) and [PRD](prd.md).
-> Updated: 2026-03-12
+> Updated: 2026-03-29
 
 ---
 
@@ -12,6 +12,7 @@
 | Baseline | Digital PDF parsing, single-pass extraction, citation enrichment | Done |
 | Phase 1 | Multi-pass extraction, pydantic-settings config, restriction validators | Done |
 | Phase 2 | Multi-LLM providers (OpenAI, Ollama, Anthropic, Gemini) | Done |
+| Client API Redesign | Decouple processor, three-layer API, `create_llm()` factory | Done |
 | Phase 3 | Scanned PDF support (OCR pipeline) | Not started |
 | Phase 4 | Batch and async processing | Not started |
 
@@ -43,12 +44,27 @@
 ## Phase 2 — Multi-LLM Provider Support
 
 - [x] `OpenAILLM` — Responses API (`client.responses.create`)
-- [x] `OllamaLLM` — Chat Completions API (`client.chat.completions.create`)
+- [x] `OllamaLLM` — Native Ollama SDK (`ollama.Client.chat`)
 - [x] `AnthropicLLM` — Messages API (optional dependency)
 - [x] `GeminiLLM` — Google GenAI SDK (optional dependency)
 - [x] `BaseLLM.generate_structured_output` made non-abstract (raises `NotImplementedError`)
 - [x] Optional extras in `pyproject.toml` (`anthropic`, `gemini`, `ocr`)
 - [x] Integration test suite (`tests_integration/`) with dynamic Ollama model discovery
+- [x] `_LLM_REGISTRY` and `create_llm()` factory function
+
+## Client API Redesign
+
+- [x] `DocumentProcessor` decoupled from document (no `document` in `__init__`)
+- [x] `DocumentProcessor.extract()` takes `uri`, `response_format`, keyword-only options
+- [x] `PDFProcessor` convenience wrapper (`provider` + `model` or `llm` instance)
+- [x] Top-level `extract()` one-liner in `doc_intelligence/extract.py`
+- [x] `create_llm()` registry-based factory in `doc_intelligence/llm.py`
+- [x] `ExtractionResult` typed return (`.data` / `.metadata`)
+- [x] `BaseLLM` stores per-provider default `model`; per-call override via kwargs
+- [x] Removed dead `response` and `response_metadata` fields from `Document`
+- [x] Removed cross-provider `default_llm_model` bug from `config.py`
+- [x] Public API exported via `doc_intelligence/__init__.py` with `__all__`
+- [x] `tests/test_init.py` — public API contract tests
 
 ## Phase 3 — Scanned PDF Support (OCR Pipeline)
 

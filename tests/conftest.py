@@ -2,11 +2,13 @@
 
 from typing import Any
 
+import numpy as np
 import pytest
 from pydantic import BaseModel, Field
 
 from doc_intelligence.base import BaseExtractor, BaseFormatter, BaseLLM, BaseParser
-from doc_intelligence.pdf.schemas import PDF, Line, Page, PDFDocument
+from doc_intelligence.ocr.base import BaseLayoutDetector, BaseOCREngine, LayoutRegion
+from doc_intelligence.pdf.schemas import PDF, Line, Page, PDFDocument, TextBlock
 from doc_intelligence.pdf.types import PDFExtractionMode
 from doc_intelligence.schemas.core import (
     BoundingBox,
@@ -19,6 +21,34 @@ from doc_intelligence.schemas.core import (
 # ---------------------------------------------------------------------------
 # Fake ABC implementations
 # ---------------------------------------------------------------------------
+class FakeLayoutDetector(BaseLayoutDetector):
+    """A fake layout detector that returns a pre-set list of regions."""
+
+    def __init__(self, regions: list[LayoutRegion] | None = None):
+        self.regions = regions or []
+        self.call_count = 0
+        self.last_image: np.ndarray | None = None
+
+    def detect(self, page_image: np.ndarray) -> list[LayoutRegion]:
+        self.call_count += 1
+        self.last_image = page_image
+        return self.regions
+
+
+class FakeOCREngine(BaseOCREngine):
+    """A fake OCR engine that returns a pre-set list of lines."""
+
+    def __init__(self, lines: list[Line] | None = None):
+        self.lines = lines or []
+        self.call_count = 0
+        self.last_image: np.ndarray | None = None
+
+    def ocr(self, region_image: np.ndarray) -> list[Line]:
+        self.call_count += 1
+        self.last_image = region_image
+        return self.lines
+
+
 class FakeLLM(BaseLLM):
     """A fake LLM that returns canned text responses without making API calls.
 
@@ -152,14 +182,14 @@ def sample_lines(sample_bbox: BoundingBox) -> list[Line]:
 
 @pytest.fixture
 def sample_page(sample_lines: list[Line]) -> Page:
-    """A single page with 3 lines, 500x800 dimensions."""
-    return Page(lines=sample_lines, width=500, height=800)
+    """A single page with 3 lines in one TextBlock, 500x800 dimensions."""
+    return Page(blocks=[TextBlock(lines=sample_lines)], width=500, height=800)
 
 
 @pytest.fixture
 def sample_page_empty() -> Page:
-    """A page with no lines."""
-    return Page(lines=[], width=500, height=800)
+    """A page with no blocks."""
+    return Page(blocks=[], width=500, height=800)
 
 
 @pytest.fixture
@@ -248,6 +278,25 @@ def simple_extraction_model() -> type[SimpleExtraction]:
 @pytest.fixture
 def nested_extraction_model() -> type[NestedExtraction]:
     return NestedExtraction
+
+
+# ---------------------------------------------------------------------------
+# OCR fakes
+# ---------------------------------------------------------------------------
+@pytest.fixture
+def sample_layout_region(sample_bbox: BoundingBox) -> LayoutRegion:
+    """A single text layout region with 90% confidence."""
+    return LayoutRegion(bounding_box=sample_bbox, region_type="text", confidence=0.9)
+
+
+@pytest.fixture
+def fake_layout_detector(sample_layout_region: LayoutRegion) -> FakeLayoutDetector:
+    return FakeLayoutDetector(regions=[sample_layout_region])
+
+
+@pytest.fixture
+def fake_ocr_engine(sample_lines: list[Line]) -> FakeOCREngine:
+    return FakeOCREngine(lines=sample_lines)
 
 
 # ---------------------------------------------------------------------------

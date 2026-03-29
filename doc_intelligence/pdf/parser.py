@@ -6,7 +6,8 @@ import pdfplumber
 import requests
 
 from doc_intelligence.base import BaseParser
-from doc_intelligence.pdf.schemas import PDF, BoundingBox, Line, Page, PDFDocument
+from doc_intelligence.pdf.schemas import PDF, Line, Page, PDFDocument, TextBlock
+from doc_intelligence.schemas.core import BoundingBox
 from doc_intelligence.utils import normalize_bounding_box
 
 
@@ -46,5 +47,6 @@ class DigitalPDFParser(PDFParser):
                         page.height,
                     )
                     lines.append(Line(text=line["text"], bounding_box=bbox))
-                pages.append(Page(lines=lines, width=page.width, height=page.height))
+                blocks = [TextBlock(lines=lines)] if lines else []
+                pages.append(Page(blocks=blocks, width=page.width, height=page.height))
         return PDFDocument(uri=document.uri, content=PDF(pages=pages))

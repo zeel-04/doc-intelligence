@@ -48,6 +48,22 @@ tests/                      # Mirrors doc_intelligence/ structure exactly
 
 **Rule:** New document types (e.g. `docx/`, `image/`) get their own folder under `doc_intelligence/` with the same internal layout as `pdf/`.
 
+## Public API
+
+Everything in `__all__` from `doc_intelligence/__init__.py` is the public surface. Currently:
+
+- **One-liner:** `extract()`
+- **Processors:** `PDFProcessor`, `DocumentProcessor`
+- **LLMs:** `create_llm()`, `BaseLLM`, `OpenAILLM`, `OllamaLLM`, `AnthropicLLM`, `GeminiLLM`
+- **PDF types:** `PDFDocument`, `PDFExtractionMode`, `PDFExtractionConfig`
+- **Primitives:** `ExtractionResult`, `BoundingBox`, `BaseCitation`
+
+Everything else is internal. Users should never import from submodules directly (e.g. `from doc_intelligence.pdf.parser import ...`).
+
+## Specs
+
+`specs/prd.md` and `specs/engineering_design.md` are the source of truth for planned features and architecture decisions. Consult them before starting new feature work.
+
 ## Workflow
 
 1. **Plan first.** Before writing code, outline the steps. Ask for clarification on ambiguous trade-offs.
@@ -56,6 +72,18 @@ tests/                      # Mirrors doc_intelligence/ structure exactly
 4. **Never leave the codebase broken** between steps.
 5. **Bump spec versions after every spec change** After any modification to the codebase if it requires to change plan, then, increment the minor version (e.g. `1.1` → `1.2`) in both `specs/prd.md` and `specs/engineering_design.md`. Do this automatically — never wait to be asked.
 6. **Ping me if CLAUDE.md needs to be updated** If during code modifications/planning if there's anything worth adding/updating/deleting from CLAUDE.md then propose me with a summarized pros & cons.
+
+## Git Conventions
+
+- **Branch naming:** `feature/<short-description>`, `fix/<short-description>`, `refactor/<short-description>`.
+- **Commit messages:** Imperative mood, concise first line (e.g. "Add multi-pass extraction for tables"). Body for context if needed.
+- **PRs:** Target `main` from feature branches. One logical change per PR.
+
+## Dependencies
+
+- Minimize runtime dependencies. New deps require justification.
+- `uv add <pkg>` for runtime, `uv add --dev <pkg>` for dev-only.
+- Pin exact versions for runtime deps in `pyproject.toml`.
 
 ## Tooling
 
@@ -77,7 +105,7 @@ uv run ruff format --check .  # format check
 uv run pyrefly check .        # type checking
 ```
 
-- You can use context7 for getting up to date Documentation For libraries.
+- Use **Context7 MCP** to fetch current library/framework documentation instead of relying on training data.
 
 ## Coding Standards
 
@@ -99,8 +127,12 @@ uv run pyrefly check .        # type checking
 ### Error Handling
 
 - Use `loguru` for logging — never `print()` or stdlib `logging`.
-- Raise `ValueError` / `TypeError` with descriptive messages.
+- Use stdlib exceptions (`ValueError`, `TypeError`) with descriptive messages. No custom exception hierarchy for now — revisit if users need granular error handling.
 - Use `tenacity` for retry logic on LLM/network calls.
+
+### Configuration
+
+`DocIntelligenceConfig` in `config.py` uses `pydantic-settings`. All settings are overridable via `DOC_INTEL_*` env vars or `.env` file. The module-level `settings` singleton is the single source of truth — import and use it, don't instantiate your own.
 
 ### General Rules
 
@@ -128,3 +160,42 @@ uv run pyrefly check .        # type checking
 - Shared fixtures live in `tests/conftest.py` (`FakeLLM`, `FakeParser`, `sample_pdf`, `sample_pdf_document`, etc.).
 - Target **100% coverage** — every public function, branch, and edge case must be tested.
 - Add module-level docstring: `"""Tests for pdf.parser module."""`
+- **Async tests:** Use `pytest-asyncio` with `@pytest.mark.asyncio` for async code paths. Keep async fixtures in `conftest.py` alongside sync ones.
+
+## Integration & E2E Testing
+
+Integration and end-to-end tests live in `tests/integration/` and are **data-driven** — test cases are Python dicts, not inline assertions.
+
+### Structure
+
+```
+tests/integration/
+├── conftest.py          # --run-live flag, markers, pdf_path fixture, schema registry
+├── test_cases.py        # All test case dicts: PARSE_CASES, FORMAT_CASES, EXTRACT_CASES
+├── pdfs/                # Real test PDF files (<100KB each)
+├── test_parse.py        # Parse-only tests
+├── test_format.py       # Format-only tests
+└── test_extract.py      # Full extraction pipeline tests
+```
+
+### Adding a Test Case
+
+1. Add a dict to the appropriate list in `test_cases.py` (`PARSE_CASES`, `FORMAT_CASES`, or `EXTRACT_CASES`).
+2. Place any new PDF in `tests/integration/pdfs/`.
+3. No code changes needed in test files — `@pytest.mark.parametrize` picks up new cases automatically.
+
+### Mocked vs Live LLM
+
+- **Default:** `FakeLLM` with `mock_llm_response` from the test case dict. No API keys needed.
+- **`--run-live` flag:** Uses real LLM via `create_llm()`. Requires API keys. Tests marked `@pytest.mark.live` are skipped without this flag.
+
+```bash
+uv run pytest tests/integration/ -v              # mocked (default)
+uv run pytest tests/integration/ -v --run-live   # real LLM calls
+```
+
+### Assertions
+
+- **Exact match** by default: `result.data.model_dump() == case["expected_data"]`.
+- Parse tests assert page count, line count, and line text content.
+- Format tests assert output string contains expected substrings.

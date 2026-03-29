@@ -1,6 +1,6 @@
 from typing import Any
 
-from doc_intelligence.pdf.schemas import PDF
+from doc_intelligence.pdf.schemas import PDF, blocks_to_lines
 from doc_intelligence.schemas.core import Document
 
 
@@ -59,12 +59,13 @@ def enrich_citations_with_bboxes(
             return citation
 
         page = parsed_pdf.pages[page_idx]
+        flat_lines = blocks_to_lines(page.blocks)
         bboxes = []
 
         for line_idx in line_indices:
             # Bounds check for line
-            if line_idx >= 0 and line_idx < len(page.lines):
-                bbox = page.lines[line_idx].bounding_box
+            if line_idx >= 0 and line_idx < len(flat_lines):
+                bbox = flat_lines[line_idx].bounding_box
                 # Convert BoundingBox to dict
                 bboxes.append(bbox.model_dump())
 

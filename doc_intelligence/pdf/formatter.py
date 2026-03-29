@@ -1,7 +1,7 @@
 from loguru import logger
 
 from doc_intelligence.base import BaseFormatter
-from doc_intelligence.pdf.schemas import PDF
+from doc_intelligence.pdf.schemas import PDF, blocks_to_lines
 from doc_intelligence.schemas.core import Document
 
 
@@ -12,7 +12,7 @@ class DigitalPDFFormatter(BaseFormatter):
             raise ValueError("PDFFormatter: format_for_llm: Document pages are not set")
         for page_number, page in enumerate(content.pages):
             lines_text = ""
-            for line_number, line in enumerate(page.lines):
+            for line_number, line in enumerate(blocks_to_lines(page.blocks)):
                 line_text = f"{line_number}: {line.text}" + "\n"
                 lines_text += line_text
             paginated.append(f"<page number={page_number}>\n{lines_text}</page>")
@@ -24,7 +24,7 @@ class DigitalPDFFormatter(BaseFormatter):
             raise ValueError("PDFFormatter: format_for_llm: Document pages are not set")
         for page_number, page in enumerate(content.pages):
             lines_text = ""
-            for _, line in enumerate(page.lines):
+            for line in blocks_to_lines(page.blocks):
                 line_text = f"{line.text}" + "\n"
                 lines_text += line_text
             paginated.append(f"<page number={page_number}>\n{lines_text}</page>")

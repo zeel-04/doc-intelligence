@@ -64,7 +64,8 @@ class TestDigitalPDFParser:
         assert isinstance(result, PDFDocument)
         assert result.content is not None
         assert len(result.content.pages) == 1
-        assert len(result.content.pages[0].lines) == 2
+        assert len(result.content.pages[0].blocks) == 1
+        assert len(result.content.pages[0].blocks[0].lines) == 2  # type: ignore[union-attr]
 
     @patch("doc_intelligence.pdf.parser.requests")
     @patch("doc_intelligence.pdf.parser.pdfplumber")
@@ -115,7 +116,7 @@ class TestDigitalPDFParser:
         result = parser.parse(PDFDocument(uri="test.pdf"))
 
         assert result.content is not None
-        bbox = result.content.pages[0].lines[0].bounding_box
+        bbox = result.content.pages[0].blocks[0].lines[0].bounding_box  # type: ignore[union-attr]
         assert bbox.x0 == pytest.approx(0.2)
         assert bbox.top == pytest.approx(0.2)
         assert bbox.x1 == pytest.approx(0.6)
@@ -141,7 +142,7 @@ class TestDigitalPDFParser:
         result = parser.parse(PDFDocument(uri="test.pdf"))
 
         assert result.content is not None
-        assert result.content.pages[0].lines == []
+        assert result.content.pages[0].blocks == []
 
     @patch("doc_intelligence.pdf.parser.pdfplumber")
     def test_page_dimensions_preserved(self, mock_pdfplumber):
@@ -174,7 +175,7 @@ class TestDigitalPDFParser:
         result = parser.parse(PDFDocument(uri="test.pdf"))
 
         assert result.content is not None
-        assert result.content.pages[0].lines[0].text == "Special chars: é à ü"
+        assert result.content.pages[0].blocks[0].lines[0].text == "Special chars: é à ü"  # type: ignore[union-attr]
 
     @patch("doc_intelligence.pdf.parser.pdfplumber")
     def test_result_uri_matches_input(self, mock_pdfplumber):

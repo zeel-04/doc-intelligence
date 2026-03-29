@@ -1,8 +1,8 @@
 # Engineering Design Document — doc_intelligence
 
-**Version:** 0.1.5
+**Version:** 0.1.8
 **Status:** Living document
-**Last updated:** 2026-03-13
+**Last updated:** 2026-03-29
 
 ---
 
@@ -23,7 +23,7 @@ doc_intelligence/
 │   ├── types.py        # PDFExtractionMode (SINGLE_PASS, MULTI_PASS)
 │   └── utils.py        # enrich_citations_with_bboxes
 ├── schemas/
-│   └── core.py         # Document, BoundingBox, ExtractionConfig, ExtractionResult, PydanticModel TypeVar
+│   └── core.py         # Document, BoundingBox, BaseCitation, ExtractionConfig, ExtractionResult, PydanticModel TypeVar
 ├── base.py             # BaseParser, BaseFormatter, BaseLLM, BaseExtractor
 ├── llm.py              # OpenAILLM, OllamaLLM, AnthropicLLM, GeminiLLM, create_llm()
 ├── extract.py          # Top-level extract() convenience function
@@ -56,17 +56,20 @@ DigitalPDFExtractor.extract()
 ExtractionResult(data=<PydanticModel instance>, metadata=<citation dict>)
 ```
 
-### Key design decisions already in place
+### Key design decisions
 
 - `Document.content` is `BaseModel | None`. `PDFDocument` narrows it to `PDF | None`.
+- `Document.extraction_mode` is declared on the base `Document` model; `PDFDocument` defaults it to `PDFExtractionMode.SINGLE_PASS`.
 - All LLM interaction goes through `BaseLLM.generate_text`; `generate_structured_output` exists but is not used by the current extractor.
 - Citation enrichment is a pure function over a dict — no mutation of the Pydantic model.
-- `PDFExtractionMode.MULTI_PASS` exists in the enum but raises `NotImplementedError`. Phase 1 implements it.
-- `config.py` is currently a plain dict. Phase 1 replaces it with a Pydantic Settings model.
+- `PDFExtractionMode.MULTI_PASS` is fully implemented via three-pass extraction in `DigitalPDFExtractor` (Phase 1).
+- `config.py` uses `pydantic-settings` (`DocIntelligenceConfig`) with `DOC_INTEL_` env prefix (Phase 1).
+- `BaseParser` is generic: `BaseParser(ABC, Generic[TDocument])` where `TDocument = TypeVar("TDocument", bound=Document)`. `PDFParser` narrows to `BaseParser[PDFDocument]`.
+- `DocumentProcessor` is stateless w.r.t. documents — a fresh `PDFDocument` is created per `extract()` call (Client API Redesign).
 
 ---
 
-## Phase 1 — Multi-pass Extraction + Restrictions
+## Phase 1 — Multi-pass Extraction + Restrictions (Complete)
 
 ### 1.1 Goals
 
@@ -176,9 +179,9 @@ Passes 1–3 results are stored on `PDFDocument`:
 class PDFDocument(Document):
     content: PDF | None = None
     extraction_mode: Enum = PDFExtractionMode.SINGLE_PASS
-    # new fields:
-    pass1_result: BaseModel | None = None       # raw extraction
-    pass2_page_map: dict[str, list[int]] | None = None   # field → pages
+    page_numbers: list[int] | None = None       # optional page filter
+    pass1_result: BaseModel | None = None       # raw extraction (multi-pass)
+    pass2_page_map: dict[str, list[int]] | None = None   # field → pages (multi-pass)
 ```
 
 The final `extract()` return shape is unchanged: `ExtractionResult(data=…, metadata=…)` — access via `.data` and `.metadata`.
@@ -432,7 +435,7 @@ Both ABCs work on `numpy` arrays so they are independent of the image-loading li
 ```
 PDF file / URL
     │
-    ▼ (pdf2image or pymupdf)
+    ▼ (pypdfium2)
 list[np.ndarray]  — one array per page
     │
     ▼ BaseLayoutDetector.detect(page_image)  — per page
@@ -447,7 +450,7 @@ PDFDocument(content=PDF(pages=[Page(lines=[…])]))
 
 Parallelism is at the region level within a page. Pages are processed sequentially by default in Phase 3; full page-level parallelism arrives in Phase 4.
 
-The `page_images` generation step (PDF → images) uses `pymupdf` (already a project dependency) to render pages as arrays.
+The `page_images` generation step (PDF → images) uses `pypdfium2` (already a project dependency) to render pages as arrays.
 
 ---
 
@@ -730,7 +733,7 @@ New optional dependencies are declared as extras in `pyproject.toml`, not requir
 
 ```toml
 [project.optional-dependencies]
-ollama     = []                             # no extra deps (uses openai SDK)
+ollama     = ["ollama>=0.4.0"]              # native Ollama SDK
 anthropic  = ["anthropic>=0.40.0"]
 gemini     = ["google-genai>=1.57.0"]       # already in main deps
 ocr        = ["paddleocr>=2.9.0", "paddlepaddle>=3.0.0"]

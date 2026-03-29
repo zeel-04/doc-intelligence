@@ -891,7 +891,7 @@ dependencies = [
     { name = "openai" },
     { name = "pdfplumber" },
     { name = "pydantic-settings" },
-    { name = "pymupdf" },
+    { name = "pypdfium2" },
     { name = "python-dotenv" },
     { name = "streamlit" },
     { name = "torch" },
@@ -925,6 +925,7 @@ dev = [
     { name = "pyrefly" },
     { name = "pytest" },
     { name = "pytest-cov" },
+    { name = "reportlab" },
     { name = "ruff" },
 ]
 
@@ -943,7 +944,7 @@ requires-dist = [
     { name = "paddlepaddle", marker = "extra == 'ocr'", specifier = ">=3.0.0" },
     { name = "pdfplumber", specifier = ">=0.11.9" },
     { name = "pydantic-settings", specifier = ">=2.0.0" },
-    { name = "pymupdf", specifier = ">=1.26.7" },
+    { name = "pypdfium2", specifier = ">=4.30.0" },
     { name = "python-dotenv", specifier = ">=1.2.1" },
     { name = "streamlit", specifier = ">=1.54.0" },
     { name = "torch", specifier = ">=2.10.0" },
@@ -963,6 +964,7 @@ dev = [
     { name = "pyrefly", specifier = ">=0.48.2" },
     { name = "pytest", specifier = ">=9.0.2" },
     { name = "pytest-cov", specifier = ">=7.0.0" },
+    { name = "reportlab", specifier = ">=4.4.10" },
     { name = "ruff", specifier = ">=0.14.13" },
 ]
 
@@ -3476,21 +3478,6 @@ wheels = [
 ]
 
 [[package]]
-name = "pymupdf"
-version = "1.26.7"
-source = { registry = "https://pypi.org/simple" }
-sdist = { url = "https://files.pythonhosted.org/packages/48/d6/09b28f027b510838559f7748807192149c419b30cb90e6d5f0cf916dc9dc/pymupdf-1.26.7.tar.gz", hash = "sha256:71add8bdc8eb1aaa207c69a13400693f06ad9b927bea976f5d5ab9df0bb489c3", size = 84327033 }
-wheels = [
-    { url = "https://files.pythonhosted.org/packages/94/35/cd74cea1787b2247702ef8522186bdef32e9cb30a099e6bb864627ef6045/pymupdf-1.26.7-cp310-abi3-macosx_10_9_x86_64.whl", hash = "sha256:07085718dfdae5ab83b05eb5eb397f863bcc538fe05135318a01ea353e7a1353", size = 23179369 },
-    { url = "https://files.pythonhosted.org/packages/72/74/448b6172927c829c6a3fba80078d7b0a016ebbe2c9ee528821f5ea21677a/pymupdf-1.26.7-cp310-abi3-macosx_11_0_arm64.whl", hash = "sha256:31aa9c8377ea1eea02934b92f4dcf79fb2abba0bf41f8a46d64c3e31546a3c02", size = 22470101 },
-    { url = "https://files.pythonhosted.org/packages/65/e7/47af26f3ac76be7ac3dd4d6cc7ee105948a8355d774e5ca39857bf91c11c/pymupdf-1.26.7-cp310-abi3-manylinux_2_28_aarch64.whl", hash = "sha256:e419b609996434a14a80fa060adec72c434a1cca6a511ec54db9841bc5d51b3c", size = 23502486 },
-    { url = "https://files.pythonhosted.org/packages/2a/6b/3de1714d734ff949be1e90a22375d0598d3540b22ae73eb85c2d7d1f36a9/pymupdf-1.26.7-cp310-abi3-manylinux_2_28_x86_64.whl", hash = "sha256:69dfc78f206a96e5b3ac22741263ebab945fdf51f0dbe7c5757c3511b23d9d72", size = 24115727 },
-    { url = "https://files.pythonhosted.org/packages/62/9b/f86224847949577a523be2207315ae0fd3155b5d909cd66c274d095349a3/pymupdf-1.26.7-cp310-abi3-musllinux_1_2_x86_64.whl", hash = "sha256:1d5106f46e1ca0d64d46bd51892372a4f82076bdc14a9678d33d630702abca36", size = 24324386 },
-    { url = "https://files.pythonhosted.org/packages/85/8e/a117d39092ca645fde8b903f4a941d9aa75b370a67b4f1f435f56393dc5a/pymupdf-1.26.7-cp310-abi3-win32.whl", hash = "sha256:7c9645b6f5452629c747690190350213d3e5bbdb6b2eca227d82702b327f6eee", size = 17203888 },
-    { url = "https://files.pythonhosted.org/packages/dd/c3/d0047678146c294469c33bae167c8ace337deafb736b0bf97b9bc481aa65/pymupdf-1.26.7-cp310-abi3-win_amd64.whl", hash = "sha256:425b1befe40d41b72eb0fe211711c7ae334db5eb60307e9dd09066ed060cceba", size = 18405952 },
-]
-
-[[package]]
 name = "pyparsing"
 version = "3.3.2"
 source = { registry = "https://pypi.org/simple" }
@@ -3952,6 +3939,19 @@ wheels = [
     { url = "https://files.pythonhosted.org/packages/43/d9/35afda99bd92bf1a5831e55a4936d37ea4bed6e34c176a3c2238317faf4f/regex-2026.2.19-cp314-cp314t-win32.whl", hash = "sha256:2905ff4a97fad42f2d0834d8b1ea3c2f856ec209837e458d71a061a7d05f9f01", size = 274742 },
     { url = "https://files.pythonhosted.org/packages/ae/42/7edc3344dcc87b698e9755f7f685d463852d481302539dae07135202d3ca/regex-2026.2.19-cp314-cp314t-win_amd64.whl", hash = "sha256:64128549b600987e0f335c2365879895f860a9161f283b14207c800a6ed623d3", size = 284443 },
     { url = "https://files.pythonhosted.org/packages/3a/45/affdf2d851b42adf3d13fc5b3b059372e9bd299371fd84cf5723c45871fa/regex-2026.2.19-cp314-cp314t-win_arm64.whl", hash = "sha256:a09ae430e94c049dc6957f6baa35ee3418a3a77f3c12b6e02883bd80a2b679b0", size = 274932 },
+]
+
+[[package]]
+name = "reportlab"
+version = "4.4.10"
+source = { registry = "https://pypi.org/simple" }
+dependencies = [
+    { name = "charset-normalizer" },
+    { name = "pillow" },
+]
+sdist = { url = "https://files.pythonhosted.org/packages/48/57/28bfbf0a775b618b6e4d854ef8dd3f5c8988e5d614d8898703502a35f61c/reportlab-4.4.10.tar.gz", hash = "sha256:5cbbb34ac3546039d0086deb2938cdec06b12da3cdb836e813258eb33cd28487", size = 3714962 }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/8a/2e/e1798b8b248e1517e74c6cdf10dd6edd485044e7edf46b5f11ffcc5a0add/reportlab-4.4.10-py3-none-any.whl", hash = "sha256:5abc815746ae2bc44e7ff25db96814f921349ca814c992c7eac3c26029bf7c24", size = 1955400 },
 ]
 
 [[package]]

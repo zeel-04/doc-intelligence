@@ -1,8 +1,8 @@
 # Product Requirements Document — doc_intelligence
 
-**Version:** 0.1.5
+**Version:** 0.1.8
 **Status:** Living document
-**Last updated:** 2026-03-13
+**Last updated:** 2026-03-29
 
 ---
 
@@ -103,7 +103,7 @@ result = processor.extract(
 
 ---
 
-### 5.2 Multi-pass Extraction (Phase 1)
+### 5.2 Multi-pass Extraction ✅ (Complete)
 
 Single-pass extraction asks the LLM to do two things at once: understand the document and locate the source. For complex documents, this degrades accuracy. Multi-pass splits the job into three focused steps.
 
@@ -120,7 +120,7 @@ The library reduces the document to only the pages identified in Pass 2 and send
 
 ---
 
-### 5.3 Extraction Limits and Restrictions (Phase 1)
+### 5.3 Extraction Limits and Restrictions ✅ (Complete)
 
 The library enforces configurable hard limits to prevent runaway usage and to make extraction predictable in production.
 
@@ -136,13 +136,13 @@ Limits are defined in a central configuration file (`config.py`) so they can be 
 
 ---
 
-### 5.4 Multiple LLM Providers (Phase 2)
+### 5.4 Multiple LLM Providers ✅ (Complete)
 
 The library ships with an OpenAI implementation. Phase 2 adds first-class support for three additional providers, all sharing the same interface.
 
 **OpenAI** (existing) — Uses the Responses API with native structured output support.
 
-**Ollama** — Connects to a locally-running Ollama server via its OpenAI-compatible `/v1` endpoint. No code changes are needed beyond pointing to a different base URL. Any model that Ollama supports (Llama, Mistral, Qwen, etc.) works without provider-specific code.
+**Ollama** — Connects to a locally-running Ollama server via the native Ollama Python SDK (`ollama.Client`). The native SDK is used instead of the OpenAI-compatible `/v1` endpoint because it correctly supports Ollama-specific parameters (e.g., `think=False`) that the `/v1` endpoint silently ignores. Any model that Ollama supports (Llama, Mistral, Qwen, etc.) works without provider-specific code.
 
 **Anthropic (Claude)** — Uses Anthropic's Messages API. Structured output is achieved by including the JSON schema in the prompt and parsing the response, since Claude does not have a native structured-output API identical to OpenAI's. Retries on malformed JSON are handled automatically.
 

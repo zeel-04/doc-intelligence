@@ -9,7 +9,7 @@ from pydantic import BaseModel, Field
 
 from doc_intelligence.pdf.extractor import DigitalPDFExtractor
 from doc_intelligence.pdf.formatter import DigitalPDFFormatter
-from doc_intelligence.pdf.schemas import PDF, Line, Page, PDFDocument
+from doc_intelligence.pdf.schemas import PDF, Line, Page, PDFDocument, TextBlock
 from doc_intelligence.pdf.types import PDFExtractionMode
 from doc_intelligence.schemas.core import BoundingBox, ExtractionResult
 from tests.conftest import FakeFormatter, FakeLLM
@@ -421,7 +421,11 @@ class TestExtractPageNumbers:
         """Return a 3-page PDFDocument with distinct per-page content."""
         pages = [
             Page(
-                lines=[Line(text=f"page{i} content", bounding_box=self._BBOX)],
+                blocks=[
+                    TextBlock(
+                        lines=[Line(text=f"page{i} content", bounding_box=self._BBOX)]
+                    )
+                ],
                 width=100,
                 height=100,
             )
