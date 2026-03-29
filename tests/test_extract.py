@@ -41,7 +41,9 @@ class TestExtract:
                 model="claude-sonnet-4-20250514",
             )
         MockProc.assert_called_once_with(
-            provider="anthropic", model="claude-sonnet-4-20250514"
+            provider="anthropic",
+            model="claude-sonnet-4-20250514",
+            document_type="digital",
         )
 
     def test_forwards_extraction_options(self):
@@ -71,7 +73,9 @@ class TestExtract:
             instance = MockProc.return_value
             instance.extract.return_value = ExtractionResult(data=None)
             extract("test.pdf", SampleModel)
-        MockProc.assert_called_once_with(provider="openai", model=None)
+        MockProc.assert_called_once_with(
+            provider="openai", model=None, document_type="digital"
+        )
 
     def test_forwards_llm_kwargs(self):
         with patch("doc_intelligence.extract.PDFProcessor") as MockProc:
@@ -84,5 +88,25 @@ class TestExtract:
                 host="http://localhost:11434",
             )
         MockProc.assert_called_once_with(
-            provider="ollama", model=None, host="http://localhost:11434"
+            provider="ollama",
+            model=None,
+            document_type="digital",
+            host="http://localhost:11434",
         )
+
+    def test_document_type_scanned_forwarded_to_processor(self):
+        with patch("doc_intelligence.extract.PDFProcessor") as MockProc:
+            instance = MockProc.return_value
+            instance.extract.return_value = ExtractionResult(data=None)
+            extract("test.pdf", SampleModel, document_type="scanned")
+        MockProc.assert_called_once_with(
+            provider="openai", model=None, document_type="scanned"
+        )
+
+    def test_document_type_defaults_to_digital(self):
+        with patch("doc_intelligence.extract.PDFProcessor") as MockProc:
+            instance = MockProc.return_value
+            instance.extract.return_value = ExtractionResult(data=None)
+            extract("test.pdf", SampleModel)
+        _, kwargs = MockProc.call_args
+        assert kwargs["document_type"] == "digital"

@@ -1,22 +1,27 @@
 """Tests for processor module."""
 
+import sys
 from typing import Any
-from unittest.mock import patch
+from unittest.mock import MagicMock, patch
 
+import numpy as np
 import pytest
 from pydantic import BaseModel, Field
 
 from doc_intelligence.pdf.extractor import DigitalPDFExtractor
 from doc_intelligence.pdf.formatter import DigitalPDFFormatter
+from doc_intelligence.pdf.ocr_parser import ScannedPDFParser
 from doc_intelligence.pdf.parser import DigitalPDFParser
 from doc_intelligence.pdf.processor import DocumentProcessor, PDFProcessor
 from doc_intelligence.pdf.schemas import PDF, PDFDocument
 from doc_intelligence.pdf.types import PDFExtractionMode
-from doc_intelligence.schemas.core import ExtractionResult
+from doc_intelligence.schemas.core import BoundingBox, ExtractionResult
 from tests.conftest import (
     FakeExtractor,
     FakeFormatter,
+    FakeLayoutDetector,
     FakeLLM,
+    FakeOCREngine,
     FakeParser,
     SimpleExtraction,
 )
@@ -480,3 +485,254 @@ class TestExtractPageNumbersPropagation:
             page_numbers=[2],
         )
         assert captured[0].page_numbers == [2]
+
+
+# ---------------------------------------------------------------------------
+# from_scanned_pdf — wiring
+# ---------------------------------------------------------------------------
+class TestFromScannedPDF:
+    def test_creates_scanned_parser(self, fake_llm: FakeLLM) -> None:
+        proc = DocumentProcessor.from_scanned_pdf(
+            llm=fake_llm,
+            layout_detector=FakeLayoutDetector(),
+            ocr_engine=FakeOCREngine(),
+        )
+        assert isinstance(proc.parser, ScannedPDFParser)
+
+    def test_uses_digital_formatter(self, fake_llm: FakeLLM) -> None:
+        proc = DocumentProcessor.from_scanned_pdf(
+            llm=fake_llm,
+            layout_detector=FakeLayoutDetector(),
+            ocr_engine=FakeOCREngine(),
+        )
+        assert isinstance(proc.formatter, DigitalPDFFormatter)
+
+    def test_uses_digital_extractor(self, fake_llm: FakeLLM) -> None:
+        proc = DocumentProcessor.from_scanned_pdf(
+            llm=fake_llm,
+            layout_detector=FakeLayoutDetector(),
+            ocr_engine=FakeOCREngine(),
+        )
+        assert isinstance(proc.extractor, DigitalPDFExtractor)
+
+    def test_custom_layout_detector_injected(self, fake_llm: FakeLLM) -> None:
+        detector = FakeLayoutDetector()
+        proc = DocumentProcessor.from_scanned_pdf(
+            llm=fake_llm,
+            layout_detector=detector,
+            ocr_engine=FakeOCREngine(),
+        )
+        assert proc.parser._layout_detector is detector  # type: ignore[attr-defined]
+
+    def test_custom_ocr_engine_injected(self, fake_llm: FakeLLM) -> None:
+        engine = FakeOCREngine()
+        proc = DocumentProcessor.from_scanned_pdf(
+            llm=fake_llm,
+            layout_detector=FakeLayoutDetector(),
+            ocr_engine=engine,
+        )
+        assert proc.parser._ocr_engine is engine  # type: ignore[attr-defined]
+
+    def test_custom_dpi_forwarded(self, fake_llm: FakeLLM) -> None:
+        proc = DocumentProcessor.from_scanned_pdf(
+            llm=fake_llm,
+            layout_detector=FakeLayoutDetector(),
+            ocr_engine=FakeOCREngine(),
+            dpi=300,
+        )
+        assert proc.parser._dpi == 300  # type: ignore[attr-defined]
+
+    def test_default_dpi_is_150(self, fake_llm: FakeLLM) -> None:
+        proc = DocumentProcessor.from_scanned_pdf(
+            llm=fake_llm,
+            layout_detector=FakeLayoutDetector(),
+            ocr_engine=FakeOCREngine(),
+        )
+        assert proc.parser._dpi == 150  # type: ignore[attr-defined]
+
+    def test_default_paddle_detector_instantiated(self, fake_llm: FakeLLM) -> None:
+        """When no detector is supplied, PaddleLayoutDetector() is used (deferred)."""
+        with patch.dict(
+            sys.modules,
+            {
+                "paddleocr": MagicMock(
+                    PPStructure=MagicMock(return_value=MagicMock()),
+                    PaddleOCR=MagicMock(return_value=MagicMock()),
+                )
+            },
+        ):
+            from doc_intelligence.ocr.paddle import PaddleLayoutDetector
+
+            proc = DocumentProcessor.from_scanned_pdf(
+                llm=fake_llm,
+                ocr_engine=FakeOCREngine(),
+            )
+        assert isinstance(proc.parser._layout_detector, PaddleLayoutDetector)  # type: ignore[attr-defined]
+
+    def test_default_paddle_engine_instantiated(self, fake_llm: FakeLLM) -> None:
+        """When no engine is supplied, PaddleOCREngine() is used (deferred)."""
+        with patch.dict(
+            sys.modules,
+            {
+                "paddleocr": MagicMock(
+                    PPStructure=MagicMock(return_value=MagicMock()),
+                    PaddleOCR=MagicMock(return_value=MagicMock()),
+                )
+            },
+        ):
+            from doc_intelligence.ocr.paddle import PaddleOCREngine
+
+            proc = DocumentProcessor.from_scanned_pdf(
+                llm=fake_llm,
+                layout_detector=FakeLayoutDetector(),
+            )
+        assert isinstance(proc.parser._ocr_engine, PaddleOCREngine)  # type: ignore[attr-defined]
+
+
+# ---------------------------------------------------------------------------
+# from_scanned_pdf — end-to-end pipeline
+# ---------------------------------------------------------------------------
+class TestScannedPipelineEndToEnd:
+    """Full extract() call through the scanned pipeline with fake components."""
+
+    def _make_scanned_processor(
+        self, fake_llm: FakeLLM, result: ExtractionResult
+    ) -> DocumentProcessor:
+        from doc_intelligence.ocr.base import LayoutRegion
+        from doc_intelligence.pdf.schemas import Line
+        from doc_intelligence.schemas.core import BoundingBox
+
+        bbox = BoundingBox(x0=0.0, top=0.0, x1=1.0, bottom=0.1)
+        regions = [LayoutRegion(bounding_box=bbox, region_type="text", confidence=0.9)]
+        lines = [Line(text="sample text", bounding_box=bbox)]
+
+        return DocumentProcessor(
+            parser=ScannedPDFParser(
+                layout_detector=FakeLayoutDetector(regions=regions),
+                ocr_engine=FakeOCREngine(lines=lines),
+            ),
+            formatter=DigitalPDFFormatter(),
+            extractor=FakeExtractor(llm=fake_llm, result=result),
+        )
+
+    def test_extract_returns_extraction_result(self, fake_llm: FakeLLM) -> None:
+        expected = ExtractionResult(
+            data=SimpleExtraction(name="OCR", age=1), metadata=None
+        )
+        proc = self._make_scanned_processor(fake_llm, expected)
+
+        with patch(
+            "doc_intelligence.pdf.ocr_parser._render_pdf_to_images",
+            return_value=[np.zeros((100, 80, 3), dtype=np.uint8)],
+        ):
+            result = proc.extract(uri="scan.pdf", response_format=SimpleExtraction)
+
+        assert isinstance(result, ExtractionResult)
+        assert result.data.name == "OCR"
+
+    def test_extract_page_has_text_block(self, fake_llm: FakeLLM) -> None:
+        """Parsed PDFDocument must contain a TextBlock from OCR output."""
+        from doc_intelligence.base import BaseExtractor, BaseFormatter
+        from doc_intelligence.pdf.schemas import TextBlock
+        from doc_intelligence.schemas.core import Document as BaseDoc
+
+        captured: list[PDFDocument] = []
+
+        class CapturingExtractor(FakeExtractor):
+            def extract(
+                self,
+                document: BaseDoc,
+                llm_config: dict,
+                extraction_config: dict,
+                formatter: BaseFormatter,
+                response_format: type,
+            ) -> ExtractionResult:
+                captured.append(document)  # type: ignore[arg-type]
+                return super().extract(
+                    document, llm_config, extraction_config, formatter, response_format
+                )
+
+        from doc_intelligence.ocr.base import LayoutRegion
+
+        bbox = BoundingBox(x0=0.0, top=0.0, x1=1.0, bottom=0.1)
+        from doc_intelligence.pdf.schemas import Line
+
+        proc = DocumentProcessor(
+            parser=ScannedPDFParser(
+                layout_detector=FakeLayoutDetector(
+                    regions=[
+                        LayoutRegion(
+                            bounding_box=bbox, region_type="text", confidence=0.9
+                        )
+                    ]
+                ),
+                ocr_engine=FakeOCREngine(
+                    lines=[Line(text="ocr line", bounding_box=bbox)]
+                ),
+            ),
+            formatter=DigitalPDFFormatter(),
+            extractor=CapturingExtractor(
+                llm=fake_llm,
+                result=ExtractionResult(
+                    data=SimpleExtraction(name="a", age=1), metadata=None
+                ),
+            ),
+        )
+
+        with patch(
+            "doc_intelligence.pdf.ocr_parser._render_pdf_to_images",
+            return_value=[np.zeros((100, 80, 3), dtype=np.uint8)],
+        ):
+            proc.extract(uri="scan.pdf", response_format=SimpleExtraction)
+
+        assert len(captured) == 1
+        doc = captured[0]
+        assert doc.content is not None
+        assert len(doc.content.pages) == 1
+        assert isinstance(doc.content.pages[0].blocks[0], TextBlock)
+
+    def test_existing_from_digital_pdf_unchanged(self, fake_llm: FakeLLM) -> None:
+        """from_digital_pdf() still wires DigitalPDFParser correctly."""
+        proc = DocumentProcessor.from_digital_pdf(llm=fake_llm)
+        assert isinstance(proc.parser, DigitalPDFParser)
+        assert isinstance(proc.formatter, DigitalPDFFormatter)
+        assert isinstance(proc.extractor, DigitalPDFExtractor)
+
+
+# ---------------------------------------------------------------------------
+# PDFProcessor — document_type parameter
+# ---------------------------------------------------------------------------
+class TestPDFProcessorDocumentType:
+    def test_default_is_digital(self, fake_llm: FakeLLM) -> None:
+        proc = PDFProcessor(llm=fake_llm)
+        assert isinstance(proc._processor.parser, DigitalPDFParser)
+
+    def test_digital_type_uses_digital_parser(self, fake_llm: FakeLLM) -> None:
+        proc = PDFProcessor(llm=fake_llm, document_type="digital")
+        assert isinstance(proc._processor.parser, DigitalPDFParser)
+
+    def test_scanned_type_uses_scanned_parser(self, fake_llm: FakeLLM) -> None:
+        with patch.dict(
+            sys.modules,
+            {
+                "paddleocr": MagicMock(
+                    PPStructure=MagicMock(return_value=MagicMock()),
+                    PaddleOCR=MagicMock(return_value=MagicMock()),
+                )
+            },
+        ):
+            proc = PDFProcessor(llm=fake_llm, document_type="scanned")
+        assert isinstance(proc._processor.parser, ScannedPDFParser)
+
+    def test_scanned_type_uses_digital_formatter(self, fake_llm: FakeLLM) -> None:
+        with patch.dict(
+            sys.modules,
+            {
+                "paddleocr": MagicMock(
+                    PPStructure=MagicMock(return_value=MagicMock()),
+                    PaddleOCR=MagicMock(return_value=MagicMock()),
+                )
+            },
+        ):
+            proc = PDFProcessor(llm=fake_llm, document_type="scanned")
+        assert isinstance(proc._processor.formatter, DigitalPDFFormatter)

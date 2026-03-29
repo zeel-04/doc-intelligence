@@ -1,4 +1,4 @@
-from typing import Any
+from typing import Any, Literal
 
 from loguru import logger
 from pydantic import BaseModel
@@ -10,8 +10,10 @@ from doc_intelligence.base import (
 )
 from doc_intelligence.config import settings
 from doc_intelligence.llm import BaseLLM, create_llm
+from doc_intelligence.ocr.base import BaseLayoutDetector, BaseOCREngine
 from doc_intelligence.pdf.extractor import DigitalPDFExtractor
 from doc_intelligence.pdf.formatter import DigitalPDFFormatter
+from doc_intelligence.pdf.ocr_parser import ScannedPDFParser
 from doc_intelligence.pdf.parser import DigitalPDFParser
 from doc_intelligence.pdf.schemas import PDFDocument, PDFExtractionConfig
 from doc_intelligence.pdf.types import PDFExtractionMode
@@ -60,6 +62,60 @@ class DocumentProcessor:
         """
         return cls(
             parser=DigitalPDFParser(),
+            formatter=DigitalPDFFormatter(),
+            extractor=DigitalPDFExtractor(llm),
+            **kwargs,
+        )
+
+    @classmethod
+    def from_scanned_pdf(
+        cls,
+        llm: BaseLLM,
+        layout_detector: BaseLayoutDetector | None = None,
+        ocr_engine: BaseOCREngine | None = None,
+        dpi: int = 150,
+        **kwargs: Any,
+    ) -> "DocumentProcessor":
+        """Create a processor pre-configured for scanned PDF extraction.
+
+        Uses :class:`~doc_intelligence.pdf.ocr_parser.ScannedPDFParser` for
+        parsing, reusing :class:`DigitalPDFFormatter` and
+        :class:`DigitalPDFExtractor` for the rest of the pipeline — no new
+        formatter or extractor is needed.
+
+        When ``layout_detector`` or ``ocr_engine`` are not provided, defaults
+        to ``PaddleLayoutDetector`` and ``PaddleOCREngine`` (deferred import,
+        requires the ``ocr`` optional dependency group).
+
+        Args:
+            llm: The LLM backend to use for extraction.
+            layout_detector: Custom layout detector; defaults to
+                ``PaddleLayoutDetector``.
+            ocr_engine: Custom OCR engine; defaults to ``PaddleOCREngine``.
+            dpi: Page rendering resolution in dots per inch (default 150).
+            **kwargs: Additional arguments forwarded to the constructor.
+
+        Returns:
+            A configured :class:`DocumentProcessor` instance.
+        """
+        if layout_detector is None:
+            from doc_intelligence.ocr.paddle import (  # type: ignore[missing-import]  # noqa: PLC0415
+                PaddleLayoutDetector,
+            )
+
+            layout_detector = PaddleLayoutDetector()
+        if ocr_engine is None:
+            from doc_intelligence.ocr.paddle import (  # type: ignore[missing-import]  # noqa: PLC0415
+                PaddleOCREngine,
+            )
+
+            ocr_engine = PaddleOCREngine()
+        return cls(
+            parser=ScannedPDFParser(
+                layout_detector=layout_detector,
+                ocr_engine=ocr_engine,
+                dpi=dpi,
+            ),
             formatter=DigitalPDFFormatter(),
             extractor=DigitalPDFExtractor(llm),
             **kwargs,
@@ -167,6 +223,9 @@ class PDFProcessor:
             Used with :func:`create_llm` when ``llm`` is not provided.
         model: Model name for the provider. If *None*, the provider's
             default is used.
+        document_type: ``"digital"`` (default) or ``"scanned"``. Selects
+            the underlying parser — :class:`DigitalPDFParser` or
+            :class:`~doc_intelligence.pdf.ocr_parser.ScannedPDFParser`.
         **llm_kwargs: Additional keyword arguments forwarded to
             :func:`create_llm` (e.g. ``api_key``, ``host``).
 
@@ -188,6 +247,7 @@ class PDFProcessor:
         *,
         provider: str | None = None,
         model: str | None = None,
+        document_type: Literal["digital", "scanned"] = "digital",
         **llm_kwargs: Any,
     ):
         if llm is not None:
@@ -196,7 +256,10 @@ class PDFProcessor:
             self._llm = create_llm(provider, model, **llm_kwargs)
         else:
             raise ValueError("Either `llm` or `provider` must be specified")
-        self._processor = DocumentProcessor.from_digital_pdf(llm=self._llm)
+        if document_type == "scanned":
+            self._processor = DocumentProcessor.from_scanned_pdf(llm=self._llm)
+        else:
+            self._processor = DocumentProcessor.from_digital_pdf(llm=self._llm)
 
     def extract(
         self,

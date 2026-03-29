@@ -212,7 +212,7 @@ tests/ocr/test_paddle.py              — tests (mocked PaddleOCR)
 
 ---
 
-## Sub-phase 3.3 — ScannedPDFParser [NOT STARTED]
+## Sub-phase 3.3 — ScannedPDFParser [DONE]
 
 **Goal:** Build the parser that wires layout detection → OCR → assembly into `PDFDocument`.
 
@@ -260,7 +260,7 @@ tests/pdf/test_ocr_parser.py          — tests
 
 ---
 
-## Sub-phase 3.4 — Factory Method & Integration [NOT STARTED]
+## Sub-phase 3.4 — Factory Method & Integration [DONE]
 
 **Goal:** Wire `ScannedPDFParser` into `DocumentProcessor` and verify end-to-end.
 

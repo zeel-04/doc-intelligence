@@ -1,6 +1,6 @@
 """Top-level convenience function for one-liner extraction."""
 
-from typing import Any
+from typing import Any, Literal
 
 from doc_intelligence.pdf.processor import PDFProcessor
 from doc_intelligence.schemas.core import ExtractionResult, PydanticModel
@@ -12,6 +12,7 @@ def extract(
     *,
     provider: str = "openai",
     model: str | None = None,
+    document_type: Literal["digital", "scanned"] = "digital",
     include_citations: bool = True,
     extraction_mode: str = "single_pass",
     page_numbers: list[int] | None = None,
@@ -30,6 +31,8 @@ def extract(
         provider: LLM provider name (default ``"openai"``).
         model: Model name for the provider. If *None*, the provider's
             default is used.
+        document_type: ``"digital"`` (default) for text-layer PDFs or
+            ``"scanned"`` for image-only PDFs that require OCR.
         include_citations: Whether to include citation metadata.
         extraction_mode: ``"single_pass"`` or ``"multi_pass"``.
         page_numbers: Optional page restriction (0-indexed).
@@ -46,7 +49,9 @@ def extract(
         >>> result = extract("invoice.pdf", InvoiceSchema, provider="openai")
         >>> print(result.data)
     """
-    processor = PDFProcessor(provider=provider, model=model, **llm_kwargs)
+    processor = PDFProcessor(
+        provider=provider, model=model, document_type=document_type, **llm_kwargs
+    )
     return processor.extract(
         uri=uri,
         response_format=response_format,
