@@ -168,7 +168,7 @@ tests/ocr/test_base.py                 — tests for ABCs
 
 ---
 
-## Sub-phase 3.2 — PaddleOCR Implementations [NOT STARTED]
+## Sub-phase 3.2 — PaddleOCR Implementations [DONE]
 
 **Goal:** Implement `PaddleLayoutDetector` and `PaddleOCREngine` using PaddleOCR.
 
