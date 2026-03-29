@@ -309,7 +309,7 @@ and get the same `ExtractionResult` shape as the digital pipeline. All existing 
 
 ---
 
-## Sub-phase 3.5 — Documentation & Exports [NOT STARTED]
+## Sub-phase 3.5 — Documentation & Exports [DONE]
 
 **Goal:** Update public API surface, docs, and package exports.
 

@@ -12,6 +12,8 @@ edit_uri: edit/main/docs/
 nav:
   - Home: index.md
   - Quick Start: quickstart.md
+  - Scanned PDFs: scanned-pdfs.md
+  - Custom OCR Components: custom-ocr.md
 
 theme:
   name: material

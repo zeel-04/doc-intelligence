@@ -10,9 +10,10 @@ A library for parsing, formatting, and processing documents that can be used to 
 
 - Extract structured data from PDF documents using LLMs
 - Automatic citation tracking with page numbers, line numbers, and bounding boxes
-- Support for digital PDFs (local files and URLs)
+- Support for digital PDFs and scanned (image-only) PDFs via OCR
 - Type-safe data models using Pydantic
 - Multi-provider LLM support: OpenAI, Anthropic, Gemini, Ollama
+- Pluggable OCR pipeline — swap in any layout detector or OCR engine
 
 ## Installation
 
@@ -24,13 +25,18 @@ A library for parsing, formatting, and processing documents that can be used to 
 ### Install with uv
 
 ```bash
+# Digital PDFs only
 uv pip install doc-intelligence
+
+# Scanned PDFs (adds PaddleOCR)
+uv pip install "doc-intelligence[ocr]"
 ```
 
 Or with pip:
 
 ```bash
 pip install doc-intelligence
+pip install "doc-intelligence[ocr]"  # for scanned PDF support
 ```
 
 ## Quick Start
@@ -95,6 +101,26 @@ result.metadata
 #     }
 # }
 ```
+
+## Scanned PDFs
+
+For image-only PDFs, add `document_type="scanned"`:
+
+```python
+processor = PDFProcessor(provider="openai", document_type="scanned")
+result = processor.extract("scanned_invoice.pdf", Invoice)
+```
+
+Or use the one-liner:
+
+```python
+from doc_intelligence import extract
+
+result = extract("scanned.pdf", Invoice, provider="openai", document_type="scanned")
+```
+
+See the [Scanned PDFs guide](https://zeel-04.github.io/doc-intelligence/scanned-pdfs/) and
+[Custom OCR Components](https://zeel-04.github.io/doc-intelligence/custom-ocr/) docs for details.
 
 ## Documentation
 
