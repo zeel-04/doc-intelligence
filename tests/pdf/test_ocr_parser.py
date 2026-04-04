@@ -1,4 +1,4 @@
-"""Tests for pdf.ocr_parser module."""
+"""Tests for ScannedPDFParser in pdf.parser module."""
 
 import threading
 import time
@@ -9,20 +9,19 @@ import pytest
 import requests
 
 from doc_intelligence.ocr.base import BaseLayoutDetector, BaseOCREngine, LayoutRegion
-from doc_intelligence.pdf.ocr_parser import (
+from doc_intelligence.pdf.parser import (
     ScannedPDFParser,
     _crop,
     _render_pdf_to_images,
 )
 from doc_intelligence.pdf.schemas import (
     PDF,
-    Line,
     Page,
     PDFDocument,
     TableBlock,
     TextBlock,
 )
-from doc_intelligence.schemas.core import BoundingBox
+from doc_intelligence.schemas.core import BoundingBox, Line
 
 
 # ---------------------------------------------------------------------------
@@ -77,7 +76,7 @@ def _patched_parse(
     if images is None:
         images = [_make_image()]
     with patch(
-        "doc_intelligence.pdf.ocr_parser._render_pdf_to_images",
+        "doc_intelligence.pdf.parser._render_pdf_to_images",
         return_value=images,
     ):
         doc = PDFDocument(uri=uri)
@@ -326,10 +325,10 @@ class TestScannedPDFParserParallelism:
             ocr_engine=ocr_engine,
         )
 
-        with patch("doc_intelligence.pdf.ocr_parser.settings") as mock_settings:
+        with patch("doc_intelligence.pdf.parser.settings") as mock_settings:
             mock_settings.max_concurrent_regions = 2
             with patch(
-                "doc_intelligence.pdf.ocr_parser._render_pdf_to_images",
+                "doc_intelligence.pdf.parser._render_pdf_to_images",
                 return_value=[_make_image()],
             ):
                 result = parser.parse(PDFDocument(uri="scan.pdf"))
@@ -364,10 +363,10 @@ class TestScannedPDFParserParallelism:
             ocr_engine=TrackingOCREngine(),
         )
 
-        with patch("doc_intelligence.pdf.ocr_parser.settings") as mock_settings:
+        with patch("doc_intelligence.pdf.parser.settings") as mock_settings:
             mock_settings.max_concurrent_regions = semaphore_limit
             with patch(
-                "doc_intelligence.pdf.ocr_parser._render_pdf_to_images",
+                "doc_intelligence.pdf.parser._render_pdf_to_images",
                 return_value=[_make_image()],
             ):
                 parser.parse(PDFDocument(uri="scan.pdf"))
@@ -396,7 +395,7 @@ class TestRenderPdfToImages:
         mock_pdf = MagicMock()
         mock_pdf.__iter__ = MagicMock(return_value=iter([mock_page]))
 
-        with patch("doc_intelligence.pdf.ocr_parser.pdfium") as mock_pdfium:
+        with patch("doc_intelligence.pdf.parser.pdfium") as mock_pdfium:
             mock_pdfium.PdfDocument.return_value = mock_pdf
             _render_pdf_to_images("/local/path/file.pdf", dpi=150)
 
@@ -413,8 +412,8 @@ class TestRenderPdfToImages:
         mock_response.content = pdf_bytes
 
         with (
-            patch("doc_intelligence.pdf.ocr_parser.requests") as mock_requests,
-            patch("doc_intelligence.pdf.ocr_parser.pdfium") as mock_pdfium,
+            patch("doc_intelligence.pdf.parser.requests") as mock_requests,
+            patch("doc_intelligence.pdf.parser.pdfium") as mock_pdfium,
         ):
             mock_requests.get.return_value = mock_response
             mock_pdfium.PdfDocument.return_value = mock_pdf
@@ -433,8 +432,8 @@ class TestRenderPdfToImages:
         mock_pdf.__iter__ = MagicMock(return_value=iter([mock_page]))
 
         with (
-            patch("doc_intelligence.pdf.ocr_parser.requests") as mock_requests,
-            patch("doc_intelligence.pdf.ocr_parser.pdfium") as mock_pdfium,
+            patch("doc_intelligence.pdf.parser.requests") as mock_requests,
+            patch("doc_intelligence.pdf.parser.pdfium") as mock_pdfium,
         ):
             mock_requests.get.return_value = MagicMock(content=b"bytes")
             mock_pdfium.PdfDocument.return_value = mock_pdf
@@ -447,7 +446,7 @@ class TestRenderPdfToImages:
         mock_pdf = MagicMock()
         mock_pdf.__iter__ = MagicMock(return_value=iter([mock_page]))
 
-        with patch("doc_intelligence.pdf.ocr_parser.pdfium") as mock_pdfium:
+        with patch("doc_intelligence.pdf.parser.pdfium") as mock_pdfium:
             mock_pdfium.PdfDocument.return_value = mock_pdf
             _render_pdf_to_images("file.pdf", dpi=144)
 
@@ -458,7 +457,7 @@ class TestRenderPdfToImages:
         mock_pdf = MagicMock()
         mock_pdf.__iter__ = MagicMock(return_value=iter(pages))
 
-        with patch("doc_intelligence.pdf.ocr_parser.pdfium") as mock_pdfium:
+        with patch("doc_intelligence.pdf.parser.pdfium") as mock_pdfium:
             mock_pdfium.PdfDocument.return_value = mock_pdf
             result = _render_pdf_to_images("file.pdf", dpi=72)
 
@@ -469,14 +468,14 @@ class TestRenderPdfToImages:
         mock_pdf = MagicMock()
         mock_pdf.__iter__ = MagicMock(return_value=iter([]))
 
-        with patch("doc_intelligence.pdf.ocr_parser.pdfium") as mock_pdfium:
+        with patch("doc_intelligence.pdf.parser.pdfium") as mock_pdfium:
             mock_pdfium.PdfDocument.return_value = mock_pdf
             result = _render_pdf_to_images("empty.pdf", dpi=72)
 
         assert result == []
 
     def test_http_error_propagates(self) -> None:
-        with patch("doc_intelligence.pdf.ocr_parser.requests") as mock_requests:
+        with patch("doc_intelligence.pdf.parser.requests") as mock_requests:
             mock_requests.get.return_value = MagicMock(
                 **{"raise_for_status.side_effect": requests.HTTPError("404")}
             )

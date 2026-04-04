@@ -10,7 +10,7 @@ from doc_intelligence.llm import (
     create_llm,
 )
 from doc_intelligence.ocr.base import BaseLayoutDetector, BaseOCREngine, LayoutRegion
-from doc_intelligence.pdf.ocr_parser import ScannedPDFParser
+from doc_intelligence.pdf.parser import ScannedPDFParser
 from doc_intelligence.pdf.processor import DocumentProcessor, PDFProcessor
 from doc_intelligence.pdf.schemas import PDFDocument, PDFExtractionConfig
 from doc_intelligence.pdf.types import PDFExtractionMode

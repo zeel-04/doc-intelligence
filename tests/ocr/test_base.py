@@ -4,8 +4,7 @@ import numpy as np
 import pytest
 
 from doc_intelligence.ocr.base import BaseLayoutDetector, BaseOCREngine, LayoutRegion
-from doc_intelligence.pdf.schemas import Line
-from doc_intelligence.schemas.core import BoundingBox
+from doc_intelligence.schemas.core import BoundingBox, Line
 
 
 # ---------------------------------------------------------------------------

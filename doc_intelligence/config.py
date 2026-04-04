@@ -10,7 +10,7 @@ class DocIntelligenceConfig(BaseSettings):
     )
 
     # Default models — overridable via DOC_INTEL_<PROVIDER>_DEFAULT_MODEL env vars
-    openai_default_model: str = Field(default="gpt-4o-mini")
+    openai_default_model: str = Field(default="gpt-5-mini")
     anthropic_default_model: str = Field(default="claude-sonnet-4-20250514")
     gemini_default_model: str = Field(default="gemini-2.0-flash")
     ollama_default_model: str = Field(default="llama3.2")

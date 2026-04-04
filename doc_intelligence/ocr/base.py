@@ -5,8 +5,7 @@ from abc import ABC, abstractmethod
 import numpy as np
 from pydantic import BaseModel
 
-from doc_intelligence.pdf.schemas import Line
-from doc_intelligence.schemas.core import BoundingBox
+from doc_intelligence.schemas.core import BoundingBox, Line
 
 
 class LayoutRegion(BaseModel):

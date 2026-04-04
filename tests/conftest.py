@@ -8,12 +8,13 @@ from pydantic import BaseModel, Field
 
 from doc_intelligence.base import BaseExtractor, BaseFormatter, BaseLLM, BaseParser
 from doc_intelligence.ocr.base import BaseLayoutDetector, BaseOCREngine, LayoutRegion
-from doc_intelligence.pdf.schemas import PDF, Line, Page, PDFDocument, TextBlock
+from doc_intelligence.pdf.schemas import PDF, Page, PDFDocument, TextBlock
 from doc_intelligence.pdf.types import PDFExtractionMode
 from doc_intelligence.schemas.core import (
     BoundingBox,
     Document,
     ExtractionResult,
+    Line,
     PydanticModel,
 )
 

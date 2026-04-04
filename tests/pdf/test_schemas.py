@@ -7,7 +7,6 @@ from doc_intelligence.pdf.schemas import (
     PDF,
     Cell,
     ContentBlock,
-    Line,
     Page,
     PDFDocument,
     PDFExtractionConfig,
@@ -17,7 +16,7 @@ from doc_intelligence.pdf.schemas import (
     table_block_to_text_block,
 )
 from doc_intelligence.pdf.types import PDFExtractionMode
-from doc_intelligence.schemas.core import BoundingBox
+from doc_intelligence.schemas.core import BoundingBox, Line
 
 
 # ---------------------------------------------------------------------------

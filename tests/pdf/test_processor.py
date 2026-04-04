@@ -10,8 +10,7 @@ from pydantic import BaseModel, Field
 
 from doc_intelligence.pdf.extractor import DigitalPDFExtractor
 from doc_intelligence.pdf.formatter import DigitalPDFFormatter
-from doc_intelligence.pdf.ocr_parser import ScannedPDFParser
-from doc_intelligence.pdf.parser import DigitalPDFParser
+from doc_intelligence.pdf.parser import DigitalPDFParser, ScannedPDFParser
 from doc_intelligence.pdf.processor import DocumentProcessor, PDFProcessor
 from doc_intelligence.pdf.schemas import PDF, PDFDocument
 from doc_intelligence.pdf.types import PDFExtractionMode
@@ -599,8 +598,7 @@ class TestScannedPipelineEndToEnd:
         self, fake_llm: FakeLLM, result: ExtractionResult
     ) -> DocumentProcessor:
         from doc_intelligence.ocr.base import LayoutRegion
-        from doc_intelligence.pdf.schemas import Line
-        from doc_intelligence.schemas.core import BoundingBox
+        from doc_intelligence.schemas.core import BoundingBox, Line
 
         bbox = BoundingBox(x0=0.0, top=0.0, x1=1.0, bottom=0.1)
         regions = [LayoutRegion(bounding_box=bbox, region_type="text", confidence=0.9)]
@@ -622,7 +620,7 @@ class TestScannedPipelineEndToEnd:
         proc = self._make_scanned_processor(fake_llm, expected)
 
         with patch(
-            "doc_intelligence.pdf.ocr_parser._render_pdf_to_images",
+            "doc_intelligence.pdf.parser._render_pdf_to_images",
             return_value=[np.zeros((100, 80, 3), dtype=np.uint8)],
         ):
             result = proc.extract(uri="scan.pdf", response_format=SimpleExtraction)
@@ -655,7 +653,7 @@ class TestScannedPipelineEndToEnd:
         from doc_intelligence.ocr.base import LayoutRegion
 
         bbox = BoundingBox(x0=0.0, top=0.0, x1=1.0, bottom=0.1)
-        from doc_intelligence.pdf.schemas import Line
+        from doc_intelligence.schemas.core import Line
 
         proc = DocumentProcessor(
             parser=ScannedPDFParser(
@@ -680,7 +678,7 @@ class TestScannedPipelineEndToEnd:
         )
 
         with patch(
-            "doc_intelligence.pdf.ocr_parser._render_pdf_to_images",
+            "doc_intelligence.pdf.parser._render_pdf_to_images",
             return_value=[np.zeros((100, 80, 3), dtype=np.uint8)],
         ):
             proc.extract(uri="scan.pdf", response_format=SimpleExtraction)

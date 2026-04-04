@@ -4,6 +4,9 @@ Both classes use deferred imports so the module is importable without PaddleOCR
 installed. Install the ``ocr`` optional dependency group to use them:
 
     uv sync --extra ocr
+
+Compatible with PaddleOCR v3.x which uses the ``predict()`` API,
+``LayoutDetection`` for layout analysis, and ``PaddleOCR`` for text recognition.
 """
 
 from typing import Any
@@ -11,33 +14,32 @@ from typing import Any
 import numpy as np
 
 from doc_intelligence.ocr.base import BaseLayoutDetector, BaseOCREngine, LayoutRegion
-from doc_intelligence.pdf.schemas import Line
-from doc_intelligence.schemas.core import BoundingBox
+from doc_intelligence.schemas.core import BoundingBox, Line
 
 
 class PaddleLayoutDetector(BaseLayoutDetector):
-    """Layout detector backed by PaddleOCR's PPStructure.
+    """Layout detector backed by PaddleOCR's ``LayoutDetection`` model.
 
     Segments a page image into typed regions (text, table, figure, etc.) using
     PaddleOCR's document layout analysis model.  Bounding boxes are returned in
     pixel coordinates relative to the input page image.
 
     Args:
-        **kwargs: Extra keyword arguments forwarded to ``PPStructure()``.
+        model_name: PaddleOCR layout model name
+            (default ``"PP-DocLayout_plus-L"``).
+        **kwargs: Extra keyword arguments forwarded to ``LayoutDetection()``.
     """
 
-    def __init__(self, **kwargs: Any) -> None:
+    def __init__(
+        self,
+        model_name: str = "PP-DocLayout_plus-L",
+        **kwargs: Any,
+    ) -> None:
         from paddleocr import (
-            PPStructure,  # type: ignore[missing-import]  # noqa: PLC0415
+            LayoutDetection,  # type: ignore[missing-import]  # noqa: PLC0415
         )
 
-        self._engine = PPStructure(
-            layout=True,
-            table=False,
-            ocr=False,
-            show_log=False,
-            **kwargs,
-        )
+        self._engine = LayoutDetection(model_name=model_name, **kwargs)
 
     def detect(self, page_image: np.ndarray) -> list[LayoutRegion]:
         """Detect layout regions in a page image.
@@ -49,20 +51,23 @@ class PaddleLayoutDetector(BaseLayoutDetector):
             A list of detected regions with pixel-coordinate bounding boxes,
             type labels, and confidence scores.
         """
-        results: list[dict[str, Any]] = self._engine(page_image)
-        return [self._to_layout_region(r) for r in results]
+        regions: list[LayoutRegion] = []
+        for res in self._engine.predict(page_image, batch_size=1):
+            boxes = res.json["res"]["boxes"]
+            regions.extend(self._to_layout_region(box) for box in boxes)
+        return regions
 
     def _to_layout_region(self, raw: dict[str, Any]) -> LayoutRegion:
-        """Convert a single PPStructure result dict to a LayoutRegion.
+        """Convert a single LayoutDetection result dict to a LayoutRegion.
 
         Args:
-            raw: A PPStructure result dict with keys ``bbox``, ``type``, and
+            raw: A result dict with keys ``coordinate``, ``label``, and
                 ``score``.
 
         Returns:
             A ``LayoutRegion`` with pixel-coordinate bounding box.
         """
-        x0, y0, x1, y1 = raw["bbox"]
+        x0, y0, x1, y1 = raw["coordinate"]
         return LayoutRegion(
             bounding_box=BoundingBox(
                 x0=float(x0),
@@ -70,7 +75,7 @@ class PaddleLayoutDetector(BaseLayoutDetector):
                 x1=float(x1),
                 bottom=float(y1),
             ),
-            region_type=raw["type"],
+            region_type=raw["label"],
             confidence=float(raw["score"]),
         )
 
@@ -89,12 +94,7 @@ class PaddleOCREngine(BaseOCREngine):
     def __init__(self, lang: str = "en", **kwargs: Any) -> None:
         from paddleocr import PaddleOCR  # type: ignore[missing-import]  # noqa: PLC0415
 
-        self._engine = PaddleOCR(
-            use_angle_cls=True,
-            lang=lang,
-            show_log=False,
-            **kwargs,
-        )
+        self._engine = PaddleOCR(lang=lang, **kwargs)
 
     def ocr(self, region_image: np.ndarray) -> list[Line]:
         """Run OCR on a single cropped region image.
@@ -108,38 +108,40 @@ class PaddleOCREngine(BaseOCREngine):
             when no text is detected.
         """
         h, w = region_image.shape[:2]
-        results: list[Any] | None = self._engine.ocr(region_image, cls=True)
-        if not results or results[0] is None:
-            return []
-        return [self._to_line(item, w, h) for item in results[0]]
+        lines: list[Line] = []
+        for res in self._engine.predict(region_image):
+            inner = res.json["res"]
+            rec_texts = inner.get("rec_texts", [])
+            rec_boxes = inner.get("rec_boxes", [])
+            if not rec_texts:
+                return []
+            for text, box in zip(rec_texts, rec_boxes):
+                lines.append(self._to_line(text, box, w, h))
+        return lines
 
-    def _to_line(self, raw: Any, width: int, height: int) -> Line:
-        """Convert a single PaddleOCR result item to a Line.
+    def _to_line(self, text: str, box: list[int], width: int, height: int) -> Line:
+        """Convert a PaddleOCR v3 result item to a Line.
 
-        PaddleOCR represents each text line as a 2-element sequence:
-        ``[polygon_points, (text, confidence)]`` where ``polygon_points`` is
-        ``[[x0,y0],[x1,y1],[x2,y2],[x3,y3]]`` in pixel coordinates.
-
-        The four-point polygon is converted to an axis-aligned bounding box,
-        then normalized by the region image dimensions.
+        PaddleOCR v3 returns ``rec_boxes`` as ``[x_min, y_min, x_max, y_max]``
+        in pixel coordinates.  These are normalized by the region image
+        dimensions.
 
         Args:
-            raw: A PaddleOCR result item.
+            text: Recognised text string.
+            box: Bounding box as ``[x_min, y_min, x_max, y_max]`` pixels.
             width: Width of the region image in pixels.
             height: Height of the region image in pixels.
 
         Returns:
             A ``Line`` with normalized bounding box.
         """
-        polygon, (text, _confidence) = raw
-        xs = [float(p[0]) for p in polygon]
-        ys = [float(p[1]) for p in polygon]
+        x0, y0, x1, y1 = box
         return Line(
             text=text,
             bounding_box=BoundingBox(
-                x0=min(xs) / width,
-                top=min(ys) / height,
-                x1=max(xs) / width,
-                bottom=max(ys) / height,
+                x0=float(x0) / width,
+                top=float(y0) / height,
+                x1=float(x1) / width,
+                bottom=float(y1) / height,
             ),
         )

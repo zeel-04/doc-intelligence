@@ -6,14 +6,12 @@ from typing import Annotated, Literal
 from pydantic import BaseModel, Field
 
 from doc_intelligence.pdf.types import PDFExtractionMode
-from doc_intelligence.schemas.core import BoundingBox, Document, ExtractionConfig
-
-
-class Line(BaseModel):
-    """A single line of text with its bounding box."""
-
-    text: str
-    bounding_box: BoundingBox
+from doc_intelligence.schemas.core import (
+    BoundingBox,
+    Document,
+    ExtractionConfig,
+    Line,
+)
 
 
 class Cell(BaseModel):

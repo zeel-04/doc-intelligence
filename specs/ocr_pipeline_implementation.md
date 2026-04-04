@@ -219,7 +219,7 @@ tests/ocr/test_paddle.py              — tests (mocked PaddleOCR)
 **What to build:**
 
 ```
-doc_intelligence/pdf/ocr_parser.py     — ScannedPDFParser
+doc_intelligence/pdf/parser.py         — ScannedPDFParser (merged alongside DigitalPDFParser)
 tests/pdf/test_ocr_parser.py          — tests
 ```
 
@@ -254,7 +254,7 @@ tests/pdf/test_ocr_parser.py          — tests
 - Test edge cases: empty pages (no regions detected), single-region pages, pages with many regions.
 - Test URL vs local path handling in `_render_pdf_to_images`.
 
-**Verification:** `uv run pytest tests/pdf/test_ocr_parser.py` + `ruff check` + `ruff format --check`
+**Verification:** `uv run pytest tests/pdf/test_ocr_parser.py tests/pdf/test_parser.py` + `ruff check` + `ruff format --check`
 
 **Exit criteria:** `ScannedPDFParser` produces valid `PDFDocument` objects with `ContentBlock`-based pages. Existing formatter and extractor accept its output unchanged.
 
@@ -368,6 +368,6 @@ Each sub-phase depends only on the previous one. The codebase is green after eve
 | 3.0 | — | `pdf/schemas.py`, `pdf/parser.py`, `pdf/formatter.py`, `pdf/utils.py`, `tests/pdf/test_schemas.py`, `tests/pdf/test_parser.py`, `tests/pdf/test_formatter.py`, `tests/pdf/test_utils.py`, `tests/conftest.py` |
 | 3.1 | `ocr/__init__.py`, `ocr/base.py`, `tests/ocr/__init__.py`, `tests/ocr/test_base.py` | `tests/conftest.py` (add fakes) |
 | 3.2 | `ocr/paddle.py`, `tests/ocr/test_paddle.py` | — |
-| 3.3 | `pdf/ocr_parser.py`, `tests/pdf/test_ocr_parser.py` | — |
+| 3.3 | `pdf/parser.py` (ScannedPDFParser), `tests/pdf/test_ocr_parser.py` | — |
 | 3.4 | — | `pdf/processor.py`, `extract.py`, `tests/pdf/test_processor.py` |
 | 3.5 | — | `ocr/__init__.py`, `docs/`, `README.md` |

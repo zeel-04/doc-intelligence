@@ -13,8 +13,7 @@ from doc_intelligence.llm import BaseLLM, create_llm
 from doc_intelligence.ocr.base import BaseLayoutDetector, BaseOCREngine
 from doc_intelligence.pdf.extractor import DigitalPDFExtractor
 from doc_intelligence.pdf.formatter import DigitalPDFFormatter
-from doc_intelligence.pdf.ocr_parser import ScannedPDFParser
-from doc_intelligence.pdf.parser import DigitalPDFParser
+from doc_intelligence.pdf.parser import DigitalPDFParser, ScannedPDFParser
 from doc_intelligence.pdf.schemas import PDFDocument, PDFExtractionConfig
 from doc_intelligence.pdf.types import PDFExtractionMode
 from doc_intelligence.restrictions import (
@@ -78,7 +77,7 @@ class DocumentProcessor:
     ) -> "DocumentProcessor":
         """Create a processor pre-configured for scanned PDF extraction.
 
-        Uses :class:`~doc_intelligence.pdf.ocr_parser.ScannedPDFParser` for
+        Uses :class:`~doc_intelligence.pdf.parser.ScannedPDFParser` for
         parsing, reusing :class:`DigitalPDFFormatter` and
         :class:`DigitalPDFExtractor` for the rest of the pipeline — no new
         formatter or extractor is needed.
@@ -225,7 +224,7 @@ class PDFProcessor:
             default is used.
         document_type: ``"digital"`` (default) or ``"scanned"``. Selects
             the underlying parser — :class:`DigitalPDFParser` or
-            :class:`~doc_intelligence.pdf.ocr_parser.ScannedPDFParser`.
+            :class:`~doc_intelligence.pdf.parser.ScannedPDFParser`.
         **llm_kwargs: Additional keyword arguments forwarded to
             :func:`create_llm` (e.g. ``api_key``, ``host``).
 

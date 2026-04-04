@@ -16,6 +16,13 @@ class BoundingBox(BaseModel):
     bottom: float
 
 
+class Line(BaseModel):
+    """A single line of text with its bounding box."""
+
+    text: str
+    bounding_box: BoundingBox
+
+
 # -------------------------------------
 # Base Citation
 # -------------------------------------

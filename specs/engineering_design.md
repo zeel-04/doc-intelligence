@@ -1,6 +1,6 @@
 # Engineering Design Document — doc_intelligence
 
-**Version:** 0.1.8
+**Version:** 0.1.9
 **Status:** Living document
 **Last updated:** 2026-03-29
 
@@ -485,7 +485,7 @@ The `paddleocr` import is deferred (inside `__init__`) so the library is importa
 ### 3.6 ScannedPDFParser
 
 ```python
-# doc_intelligence/pdf/ocr_parser.py
+# doc_intelligence/pdf/parser.py  (alongside DigitalPDFParser)
 
 class ScannedPDFParser(BaseParser):
     def __init__(
@@ -560,7 +560,7 @@ The URI is supplied per-call via `processor.extract(uri=…)`, consistent with `
 | `doc_intelligence/ocr/__init__.py`   | New package                                     |
 | `doc_intelligence/ocr/base.py`       | New — `BaseLayoutDetector`, `BaseOCREngine`     |
 | `doc_intelligence/ocr/paddle.py`     | New — `PaddleLayoutDetector`, `PaddleOCREngine` |
-| `doc_intelligence/pdf/ocr_parser.py` | New — `ScannedPDFParser`                        |
+| `doc_intelligence/pdf/parser.py`     | Add `ScannedPDFParser` (merged from ocr_parser) |
 | `doc_intelligence/pdf/processor.py`  | Add `from_scanned_pdf()` factory                |
 | `tests/ocr/test_base.py`             | New                                             |
 | `tests/ocr/test_paddle.py`           | New (mocked PaddleOCR)                          |

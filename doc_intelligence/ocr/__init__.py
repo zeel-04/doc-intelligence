@@ -1,4 +1,4 @@
-"""OCR package for scanned PDF processing.
+"""OCR package: layout detection and text recognition engines.
 
 Public surface:
 
@@ -6,13 +6,10 @@ Public surface:
 - :class:`LayoutRegion` — schema returned by layout detectors
 - :class:`PaddleLayoutDetector` / :class:`PaddleOCREngine` — default implementations
   (require the ``ocr`` optional dependency group)
-- :class:`~doc_intelligence.pdf.ocr_parser.ScannedPDFParser` — parser that wires
-  layout detection + OCR into a ``PDFDocument``
 """
 
 from doc_intelligence.ocr.base import BaseLayoutDetector, BaseOCREngine, LayoutRegion
 from doc_intelligence.ocr.paddle import PaddleLayoutDetector, PaddleOCREngine
-from doc_intelligence.pdf.ocr_parser import ScannedPDFParser
 
 __all__ = [
     # Abstract bases
@@ -22,6 +19,4 @@ __all__ = [
     # Default implementations
     "PaddleLayoutDetector",
     "PaddleOCREngine",
-    # Parser
-    "ScannedPDFParser",
 ]
