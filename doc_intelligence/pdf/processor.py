@@ -180,6 +180,7 @@ class DocumentProcessor:
 
         # Restriction checks — before any expensive work
         check_pdf_size(document.uri, settings.max_pdf_size_mb)
+        check_page_count(document.uri, settings.max_pdf_pages)
         check_schema_depth(response_format, settings.max_schema_depth)
 
         # Build extraction config
@@ -192,10 +193,6 @@ class DocumentProcessor:
         # Auto-parse if not done
         if not document.content:
             self._parse(document)
-
-        # Page count check — requires parsed content
-        if document.content and hasattr(document.content, "pages"):
-            check_page_count(len(document.content.pages), settings.max_pdf_pages)
 
         return self.extractor.extract(
             document=document,

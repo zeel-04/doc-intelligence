@@ -3,6 +3,7 @@
 import os
 from typing import Any
 
+import pdfplumber
 from pydantic import BaseModel
 
 
@@ -25,16 +26,22 @@ def check_pdf_size(uri: str, max_mb: float) -> None:
         )
 
 
-def check_page_count(page_count: int, max_pages: int) -> None:
-    """Raise ValueError if page_count exceeds max_pages.
+def check_page_count(uri: str, max_pages: int) -> None:
+    """Raise ValueError if the PDF at uri has more pages than max_pages.
+
+    Opens the PDF to read its page count without full parsing.
 
     Args:
-        page_count: Number of pages in the PDF.
+        uri: Local file path to the PDF.
         max_pages: Maximum allowed page count.
 
     Raises:
-        ValueError: If page_count exceeds max_pages.
+        ValueError: If page count exceeds max_pages.
     """
+    if not os.path.isfile(uri):
+        return  # non-local URIs are not page-checked here
+    with pdfplumber.open(uri) as pdf:
+        page_count = len(pdf.pages)
     if page_count > max_pages:
         raise ValueError(f"PDF has {page_count} pages, limit is {max_pages}")
 

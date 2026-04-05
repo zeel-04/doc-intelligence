@@ -1,6 +1,6 @@
 """Tests for restrictions module."""
 
-from unittest.mock import patch
+from unittest.mock import MagicMock, patch
 
 import pytest
 from pydantic import BaseModel
@@ -51,28 +51,61 @@ class TestCheckPdfSize:
 # check_page_count
 # ---------------------------------------------------------------------------
 class TestCheckPageCount:
-    def test_passes_when_under_limit(self):
-        check_page_count(50, max_pages=100)  # should not raise
+    def _mock_pdf_with_pages(self, n: int):
+        """Return a mock suitable for ``pdfplumber.open()`` context manager."""
+        mock_pdf = MagicMock()
+        mock_pdf.pages = [MagicMock() for _ in range(n)]
+        mock_pdf.__enter__ = lambda s: s
+        mock_pdf.__exit__ = MagicMock(return_value=False)
+        return mock_pdf
 
-    def test_passes_exactly_at_limit(self):
-        check_page_count(100, max_pages=100)  # should not raise
+    @patch("doc_intelligence.restrictions.os.path.isfile", return_value=True)
+    @patch("doc_intelligence.restrictions.pdfplumber.open")
+    def test_passes_when_under_limit(self, mock_open, mock_isfile):
+        mock_open.return_value = self._mock_pdf_with_pages(50)
+        check_page_count("test.pdf", max_pages=100)
 
-    def test_raises_when_over_limit(self):
+    @patch("doc_intelligence.restrictions.os.path.isfile", return_value=True)
+    @patch("doc_intelligence.restrictions.pdfplumber.open")
+    def test_passes_exactly_at_limit(self, mock_open, mock_isfile):
+        mock_open.return_value = self._mock_pdf_with_pages(100)
+        check_page_count("test.pdf", max_pages=100)
+
+    @patch("doc_intelligence.restrictions.os.path.isfile", return_value=True)
+    @patch("doc_intelligence.restrictions.pdfplumber.open")
+    def test_raises_when_over_limit(self, mock_open, mock_isfile):
+        mock_open.return_value = self._mock_pdf_with_pages(101)
         with pytest.raises(ValueError, match="101 pages, limit is 100"):
-            check_page_count(101, max_pages=100)
+            check_page_count("test.pdf", max_pages=100)
 
-    def test_raises_for_zero_limit(self):
+    @patch("doc_intelligence.restrictions.os.path.isfile", return_value=True)
+    @patch("doc_intelligence.restrictions.pdfplumber.open")
+    def test_raises_for_zero_limit(self, mock_open, mock_isfile):
+        mock_open.return_value = self._mock_pdf_with_pages(1)
         with pytest.raises(ValueError, match="1 pages, limit is 0"):
-            check_page_count(1, max_pages=0)
+            check_page_count("test.pdf", max_pages=0)
+
+    def test_non_local_uri_skipped(self):
+        # URLs are not page-checked — should not raise even with 0 limit
+        check_page_count("https://example.com/doc.pdf", max_pages=0)
+
+    def test_missing_file_skipped(self, tmp_path):
+        check_page_count(str(tmp_path / "missing.pdf"), max_pages=0)
 
     @pytest.mark.parametrize("count,limit", [(5, 10), (99, 100), (0, 1)])
-    def test_parametrized_passes(self, count, limit):
-        check_page_count(count, max_pages=limit)  # should not raise
+    @patch("doc_intelligence.restrictions.os.path.isfile", return_value=True)
+    @patch("doc_intelligence.restrictions.pdfplumber.open")
+    def test_parametrized_passes(self, mock_open, mock_isfile, count, limit):
+        mock_open.return_value = self._mock_pdf_with_pages(count)
+        check_page_count("test.pdf", max_pages=limit)
 
     @pytest.mark.parametrize("count,limit", [(11, 10), (101, 100), (1, 0)])
-    def test_parametrized_raises(self, count, limit):
+    @patch("doc_intelligence.restrictions.os.path.isfile", return_value=True)
+    @patch("doc_intelligence.restrictions.pdfplumber.open")
+    def test_parametrized_raises(self, mock_open, mock_isfile, count, limit):
+        mock_open.return_value = self._mock_pdf_with_pages(count)
         with pytest.raises(ValueError):
-            check_page_count(count, max_pages=limit)
+            check_page_count("test.pdf", max_pages=limit)
 
 
 # ---------------------------------------------------------------------------

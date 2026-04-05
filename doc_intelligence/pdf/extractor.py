@@ -163,7 +163,7 @@ Generate output in JSON format.
         document.pass2_page_map = page_map
         logger.debug(f"PDFExtractor: multi-pass: pass2 page_map: {page_map}")
 
-        # Pass 3 — line grounding on relevant pages only
+        # Pass 3 — block grounding on relevant pages only
         metadata = self._extract_pass3(
             document, formatter, pass1_result, page_map, response_format, llm_config
         )
@@ -232,7 +232,7 @@ Generate output in JSON format.
         return page_map
 
     # ------------------------------------------------------------------
-    # Pass 3 — line grounding on relevant pages
+    # Pass 3 — block grounding on relevant pages
     # ------------------------------------------------------------------
 
     def _extract_pass3(
@@ -244,7 +244,7 @@ Generate output in JSON format.
         response_format: type[PydanticModel],
         llm_config: dict[str, Any],
     ) -> dict[str, Any]:
-        """Line-level grounding restricted to the pages identified in Pass 2."""
+        """Block-level grounding restricted to the pages identified in Pass 2."""
         all_pages = sorted({p for pages in page_mapping.values() for p in pages})
         if document.page_numbers:
             intersected = [p for p in all_pages if p in document.page_numbers]

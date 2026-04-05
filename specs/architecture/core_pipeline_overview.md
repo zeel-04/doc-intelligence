@@ -6,9 +6,9 @@
 
 The pipeline accepts a PDF file path and a Pydantic schema defining the desired output structure. Before any processing begins, the restrictions layer validates file size, page count, and schema nesting depth against configurable limits to reject oversized or overly complex requests early.
 
-## 2. PDF Type Detection
+## 2. PDF Type Selection
 
-The pipeline determines whether the PDF is digital (contains extractable text) or scanned (image-based). This classification decides which parser handles the document.
+The caller specifies the document type (`"digital"` or `"scanned"`) when invoking the pipeline. This selection decides which parser handles the document. Digital PDFs contain an extractable text layer; scanned PDFs are image-based and require OCR.
 
 ## 3. Parsing Phase
 
@@ -31,7 +31,7 @@ Both parsers produce a `PDFDocument` — a list of `Page` objects, each containi
 
 ## 5. Formatting
 
-`PDFFormatter` converts the `PDFDocument` into a line-numbered, `<page>`-tagged string optimized for LLM consumption. Each block is assigned an index so the LLM can reference specific content in its citations. Image and chart blocks are excluded from the output (reserved for future VLM support).
+`PDFFormatter` converts the `PDFDocument` into a block-indexed, `<page>`-tagged string optimized for LLM consumption. Each block is assigned an index so the LLM can reference specific content in its citations. Image and chart blocks are excluded from the output (reserved for future VLM support).
 
 ## 6. Extraction
 
@@ -49,4 +49,4 @@ After extraction, `enrich_citations_with_bboxes()` maps block-level citations ba
 
 ## 8. ExtractionResult
 
-The final output is an `ExtractionResult` containing `data` (the populated Pydantic model) and `metadata` (citation coordinates, token usage, processing info). Consumers use the data directly and the metadata for UI features like source highlighting.
+The final output is an `ExtractionResult` containing `data` (the populated Pydantic model) and `metadata` (citation coordinates). Consumers use the data directly and the metadata for UI features like source highlighting.

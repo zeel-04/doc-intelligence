@@ -265,27 +265,21 @@ class TestExtractRestrictions:
 
     def test_too_many_pages_raises(
         self,
-        sample_pdf: PDF,
+        fake_extractor: FakeExtractor,
         fake_formatter: FakeFormatter,
-        fake_llm: FakeLLM,
     ):
-        parsed_doc = PDFDocument(uri="test.pdf", content=sample_pdf)
-        extractor = FakeExtractor(
-            llm=fake_llm,
-            result=ExtractionResult(
-                data=SimpleExtraction(name="a", age=1),
-                metadata=None,
-            ),
-        )
-        proc = DocumentProcessor(
-            parser=FakeParser(result=parsed_doc),
-            formatter=fake_formatter,
-            extractor=extractor,
-        )
-        with patch("doc_intelligence.pdf.processor.settings") as mock_settings:
-            mock_settings.max_pdf_size_mb = 1000.0  # no size limit
+        proc = self._make_processor(fake_extractor, fake_formatter)
+        with (
+            patch("doc_intelligence.restrictions.os.path.isfile", return_value=True),
+            patch("doc_intelligence.restrictions.os.path.getsize", return_value=1024),
+            patch("doc_intelligence.restrictions.pdfplumber.open") as mock_pdf_open,
+            patch("doc_intelligence.pdf.processor.settings") as mock_settings,
+        ):
+            mock_pdf = mock_pdf_open.return_value.__enter__.return_value
+            mock_pdf.pages = [None] * 20  # 20 pages
+            mock_settings.max_pdf_size_mb = 1000.0
             mock_settings.max_schema_depth = 10
-            mock_settings.max_pdf_pages = 1  # only 1 page allowed; sample has 2
+            mock_settings.max_pdf_pages = 5  # only 5 allowed
             with pytest.raises(ValueError, match="pages, limit is"):
                 proc.extract(uri="test.pdf", response_format=SimpleExtraction)
 
