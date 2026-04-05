@@ -10,8 +10,8 @@
 doc_intelligence/
 ├── pdf/                    # All PDF-specific logic
 │   ├── parser.py           # PDFParser (abstract), DigitalPDFParser — parse PDFs into structured PDFDocument objects
-│   ├── extractor.py        # DigitalPDFExtractor — single-pass & multi-pass extraction with citation enrichment
-│   ├── formatter.py        # DigitalPDFFormatter — format PDF content for LLM consumption with line numbers
+│   ├── extractor.py        # PDFExtractor — single-pass & multi-pass extraction with citation enrichment
+│   ├── formatter.py        # PDFFormatter — format PDF content for LLM consumption with line numbers
 │   ├── processor.py        # DocumentProcessor (reusable pipeline), PDFProcessor (convenience wrapper with LLM factory)
 │   ├── schemas.py          # PDF, PDFDocument, PDFExtractionConfig — PDF-specific document models (block types and Page live in schemas/core.py)
 │   ├── types.py            # PDFExtractionMode enum (SINGLE_PASS, MULTI_PASS)
@@ -90,12 +90,15 @@ Everything else is internal. Users should never import from submodules directly 
 | Tool | Purpose |
 |---|---|
 | `uv` | Dependency management |
-| `hatchling` | Build backend |
 | `ruff` | Linting and formatting |
 | `pyrefly` | Type checking |
 | `pytest` | Testing |
-| `pre-commit` | Git hooks (ruff + pyrefly) |
 | `mkdocs-material` | Documentation |
+| `asyncio` | Async support for LLM calls and processing |
+| `loguru` | Logging |
+| `tenacity` | Retry logic for LLM/network calls |
+| `pydantic` | Data validation and modeling |
+| `pydantic-settings` | Configuration management |
 
 ```bash
 uv run pytest tests/          # run all tests

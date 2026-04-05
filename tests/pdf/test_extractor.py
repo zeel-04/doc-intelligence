@@ -7,8 +7,8 @@ from unittest.mock import patch
 import pytest
 from pydantic import BaseModel, Field
 
-from doc_intelligence.pdf.extractor import DigitalPDFExtractor
-from doc_intelligence.pdf.formatter import DigitalPDFFormatter
+from doc_intelligence.pdf.extractor import PDFExtractor
+from doc_intelligence.pdf.formatter import PDFFormatter
 from doc_intelligence.pdf.schemas import PDF, PDFDocument
 from doc_intelligence.pdf.types import PDFExtractionMode
 from doc_intelligence.schemas.core import (
@@ -28,19 +28,19 @@ class SampleResponse(BaseModel):
 
 @pytest.fixture
 def extractor_with_llm():
-    """Return a (DigitalPDFExtractor, FakeLLM) pair with a canned JSON response."""
+    """Return a (PDFExtractor, FakeLLM) pair with a canned JSON response."""
     llm_response = json.dumps({"name": "Alice", "age": 30})
     llm = FakeLLM(text_response=llm_response)
-    return DigitalPDFExtractor(llm=llm), llm
+    return PDFExtractor(llm=llm), llm
 
 
 # ---------------------------------------------------------------------------
 # __init__
 # ---------------------------------------------------------------------------
-class TestDigitalPDFExtractorInit:
+class TestPDFExtractorInit:
     def test_stores_prompts(self):
         llm = FakeLLM()
-        extractor = DigitalPDFExtractor(llm=llm)
+        extractor = PDFExtractor(llm=llm)
         assert "expert" in extractor.system_prompt.lower()
         assert "{content_text}" in extractor.user_prompt
         assert "{schema}" in extractor.user_prompt
@@ -144,7 +144,7 @@ class TestExtractSinglePassWithCitations:
             }
         )
         llm = FakeLLM(text_response=citation_response)
-        extractor = DigitalPDFExtractor(llm=llm)
+        extractor = PDFExtractor(llm=llm)
 
         doc = PDFDocument(
             uri="test.pdf",
@@ -179,7 +179,7 @@ class TestExtractSinglePassWithCitations:
             }
         )
         llm = FakeLLM(text_response=citation_response)
-        extractor = DigitalPDFExtractor(llm=llm)
+        extractor = PDFExtractor(llm=llm)
 
         doc = PDFDocument(uri="test.pdf", content=sample_pdf, include_citations=True)
         result = extractor.extract(
@@ -215,7 +215,7 @@ class TestExtractMultiPass:
     def test_multi_pass_no_citations_returns_pass1_result(self, sample_pdf: PDF):
         pass1_json = json.dumps({"name": "Alice", "age": 30})
         llm = FakeLLM(responses=[pass1_json])
-        extractor = DigitalPDFExtractor(llm=llm)
+        extractor = PDFExtractor(llm=llm)
 
         result = extractor.extract(
             document=self._make_doc(sample_pdf, citations=False),
@@ -234,7 +234,7 @@ class TestExtractMultiPass:
     def test_multi_pass_no_citations_stores_pass1_on_document(self, sample_pdf: PDF):
         pass1_json = json.dumps({"name": "Bob", "age": 25})
         llm = FakeLLM(responses=[pass1_json])
-        extractor = DigitalPDFExtractor(llm=llm)
+        extractor = PDFExtractor(llm=llm)
         doc = self._make_doc(sample_pdf, citations=False)
 
         extractor.extract(
@@ -258,7 +258,7 @@ class TestExtractMultiPass:
             }
         )
         llm = FakeLLM(responses=[pass1_json, pass2_json, pass3_json])
-        extractor = DigitalPDFExtractor(llm=llm)
+        extractor = PDFExtractor(llm=llm)
 
         extractor.extract(
             document=self._make_doc(sample_pdf, citations=True),
@@ -282,7 +282,7 @@ class TestExtractMultiPass:
             }
         )
         llm = FakeLLM(responses=[pass1_json, pass2_json, pass3_json])
-        extractor = DigitalPDFExtractor(llm=llm)
+        extractor = PDFExtractor(llm=llm)
 
         result = extractor.extract(
             document=self._make_doc(sample_pdf, citations=True),
@@ -308,7 +308,7 @@ class TestExtractMultiPass:
             }
         )
         llm = FakeLLM(responses=[pass1_json, pass2_json, pass3_json])
-        extractor = DigitalPDFExtractor(llm=llm)
+        extractor = PDFExtractor(llm=llm)
 
         result = extractor.extract(
             document=self._make_doc(sample_pdf, citations=True),
@@ -331,7 +331,7 @@ class TestExtractMultiPass:
             }
         )
         llm = FakeLLM(responses=[pass1_json, pass2_json, pass3_json])
-        extractor = DigitalPDFExtractor(llm=llm)
+        extractor = PDFExtractor(llm=llm)
         doc = self._make_doc(sample_pdf, citations=True)
 
         extractor.extract(
@@ -354,7 +354,7 @@ class TestExtractMultiPass:
             }
         )
         llm = FakeLLM(responses=[pass1_json, pass2_json, pass3_json])
-        extractor = DigitalPDFExtractor(llm=llm)
+        extractor = PDFExtractor(llm=llm)
 
         extractor.extract(
             document=self._make_doc(sample_pdf, citations=True),
@@ -378,7 +378,7 @@ class TestExtractMultiPass:
             }
         )
         llm = FakeLLM(responses=[pass1_json, pass2_json, pass3_json])
-        extractor = DigitalPDFExtractor(llm=llm)
+        extractor = PDFExtractor(llm=llm)
 
         extractor.extract(
             document=self._make_doc(sample_pdf, citations=True),
@@ -396,7 +396,7 @@ class TestExtractMultiPass:
         from unittest.mock import MagicMock
 
         llm = FakeLLM()
-        extractor = DigitalPDFExtractor(llm=llm)
+        extractor = PDFExtractor(llm=llm)
         doc = PDFDocument(uri="test.pdf", content=sample_pdf)
         doc.extraction_mode = MagicMock()  # not a real PDFExtractionMode
 
@@ -451,14 +451,14 @@ class TestExtractPageNumbers:
     def test_single_pass_only_sends_requested_pages_to_llm(self):
         """page_numbers=[1] → only page 1 content in the LLM prompt."""
         llm = FakeLLM(text_response=json.dumps({"name": "Alice", "age": 30}))
-        extractor = DigitalPDFExtractor(llm=llm)
+        extractor = PDFExtractor(llm=llm)
         doc = self._make_multipage_doc(page_numbers=[1])
 
         extractor.extract(
             document=doc,
             llm_config={},
             extraction_config={},
-            formatter=DigitalPDFFormatter(),
+            formatter=PDFFormatter(),
             response_format=SampleResponse,
         )
 
@@ -470,14 +470,14 @@ class TestExtractPageNumbers:
     def test_single_pass_none_page_numbers_sends_all_pages(self):
         """page_numbers=None (default) → all pages reach the LLM."""
         llm = FakeLLM(text_response=json.dumps({"name": "Alice", "age": 30}))
-        extractor = DigitalPDFExtractor(llm=llm)
+        extractor = PDFExtractor(llm=llm)
         doc = self._make_multipage_doc(page_numbers=None)
 
         extractor.extract(
             document=doc,
             llm_config={},
             extraction_config={},
-            formatter=DigitalPDFFormatter(),
+            formatter=PDFFormatter(),
             response_format=SampleResponse,
         )
 
@@ -489,14 +489,14 @@ class TestExtractPageNumbers:
     def test_single_pass_multiple_page_numbers_filters_correctly(self):
         """page_numbers=[0, 2] → pages 0 and 2 present, page 1 absent."""
         llm = FakeLLM(text_response=json.dumps({"name": "Alice", "age": 30}))
-        extractor = DigitalPDFExtractor(llm=llm)
+        extractor = PDFExtractor(llm=llm)
         doc = self._make_multipage_doc(page_numbers=[0, 2])
 
         extractor.extract(
             document=doc,
             llm_config={},
             extraction_config={},
-            formatter=DigitalPDFFormatter(),
+            formatter=PDFFormatter(),
             response_format=SampleResponse,
         )
 
@@ -518,7 +518,7 @@ class TestExtractPageNumbers:
             }
         )
         llm = FakeLLM(responses=[pass1_json, pass2_json, pass3_json])
-        extractor = DigitalPDFExtractor(llm=llm)
+        extractor = PDFExtractor(llm=llm)
         doc = self._make_multipage_doc(
             page_numbers=[0],
             include_citations=True,
@@ -529,7 +529,7 @@ class TestExtractPageNumbers:
             document=doc,
             llm_config={},
             extraction_config={},
-            formatter=DigitalPDFFormatter(),
+            formatter=PDFFormatter(),
             response_format=SampleResponse,
         )
 
@@ -551,7 +551,7 @@ class TestExtractPageNumbers:
             }
         )
         llm = FakeLLM(responses=[pass1_json, pass2_json, pass3_json])
-        extractor = DigitalPDFExtractor(llm=llm)
+        extractor = PDFExtractor(llm=llm)
         doc = self._make_multipage_doc(
             page_numbers=[0],
             include_citations=True,
@@ -562,7 +562,7 @@ class TestExtractPageNumbers:
             document=doc,
             llm_config={},
             extraction_config={},
-            formatter=DigitalPDFFormatter(),
+            formatter=PDFFormatter(),
             response_format=SampleResponse,
         )
 
@@ -585,7 +585,7 @@ class TestExtractPageNumbers:
             }
         )
         llm = FakeLLM(responses=[pass1_json, pass2_json, pass3_json])
-        extractor = DigitalPDFExtractor(llm=llm)
+        extractor = PDFExtractor(llm=llm)
         # User only allows page 0 — page 1 from Pass 2 should be filtered out
         doc = self._make_multipage_doc(
             page_numbers=[0],
@@ -597,7 +597,7 @@ class TestExtractPageNumbers:
             document=doc,
             llm_config={},
             extraction_config={},
-            formatter=DigitalPDFFormatter(),
+            formatter=PDFFormatter(),
             response_format=SampleResponse,
         )
 
@@ -617,7 +617,7 @@ class TestExtractPageNumbers:
             }
         )
         llm = FakeLLM(responses=[pass1_json, pass2_json, pass3_json])
-        extractor = DigitalPDFExtractor(llm=llm)
+        extractor = PDFExtractor(llm=llm)
         doc = self._make_multipage_doc(
             page_numbers=[0],
             include_citations=True,
@@ -628,7 +628,7 @@ class TestExtractPageNumbers:
             document=doc,
             llm_config={},
             extraction_config={},
-            formatter=DigitalPDFFormatter(),
+            formatter=PDFFormatter(),
             response_format=SampleResponse,
         )
 
@@ -660,7 +660,7 @@ class TestSinglePassVsMultiPassAlignment:
 
     def _run_single_pass(self, sample_pdf: PDF) -> ExtractionResult:
         llm = FakeLLM(text_response=self._CITATION_JSON)
-        extractor = DigitalPDFExtractor(llm=llm)
+        extractor = PDFExtractor(llm=llm)
         doc = PDFDocument(
             uri="test.pdf",
             content=sample_pdf,
@@ -679,7 +679,7 @@ class TestSinglePassVsMultiPassAlignment:
         llm = FakeLLM(
             responses=[self._PLAIN_JSON, self._PAGE_MAP_JSON, self._CITATION_JSON]
         )
-        extractor = DigitalPDFExtractor(llm=llm)
+        extractor = PDFExtractor(llm=llm)
         doc = PDFDocument(
             uri="test.pdf",
             content=sample_pdf,

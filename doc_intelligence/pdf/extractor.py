@@ -1,4 +1,4 @@
-"""Digital PDF extraction — single-pass and multi-pass modes."""
+"""PDF extraction — single-pass and multi-pass modes."""
 
 from typing import Any
 
@@ -48,7 +48,7 @@ Generate output in JSON format.
 """
 
 
-class DigitalPDFExtractor(BaseExtractor):
+class PDFExtractor(BaseExtractor):
     def __init__(self, llm: BaseLLM):
         super().__init__(llm)
 
@@ -107,13 +107,13 @@ Generate output in JSON format.
             )
         )
         logger.debug(
-            f"DigitalPDFExtractor: extract: json_instance_schema: {json_instance_schema}"
+            f"PDFExtractor: extract: json_instance_schema: {json_instance_schema}"
         )
         page_numbers: list[int] | None = getattr(document, "page_numbers", None)
         content_text = formatter.format_document_for_llm(
             document, page_numbers=page_numbers
         )
-        logger.debug(f"DigitalPDFExtractor: extract: content_text: {content_text}")
+        logger.debug(f"PDFExtractor: extract: content_text: {content_text}")
         user_prompt = self.user_prompt.format(
             content_text=content_text, schema=json_instance_schema
         )
@@ -153,7 +153,7 @@ Generate output in JSON format.
             document, formatter, response_format, llm_config
         )
         document.pass1_result = pass1_result
-        logger.debug(f"DigitalPDFExtractor: multi-pass: pass1 complete: {pass1_result}")
+        logger.debug(f"PDFExtractor: multi-pass: pass1 complete: {pass1_result}")
 
         if not document.include_citations:
             return ExtractionResult(data=pass1_result, metadata=None)
@@ -161,13 +161,13 @@ Generate output in JSON format.
         # Pass 2 — page grounding
         page_map = self._extract_pass2(document, formatter, pass1_result, llm_config)
         document.pass2_page_map = page_map
-        logger.debug(f"DigitalPDFExtractor: multi-pass: pass2 page_map: {page_map}")
+        logger.debug(f"PDFExtractor: multi-pass: pass2 page_map: {page_map}")
 
         # Pass 3 — line grounding on relevant pages only
         metadata = self._extract_pass3(
             document, formatter, pass1_result, page_map, response_format, llm_config
         )
-        logger.debug("DigitalPDFExtractor: multi-pass: pass3 complete")
+        logger.debug("PDFExtractor: multi-pass: pass3 complete")
 
         return ExtractionResult(data=pass1_result, metadata=metadata)
 

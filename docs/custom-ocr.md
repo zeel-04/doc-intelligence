@@ -117,8 +117,8 @@ You can also instantiate `ScannedPDFParser` directly and pass it to
 
 ```python
 from doc_intelligence import DocumentProcessor, ScannedPDFParser
-from doc_intelligence.pdf.formatter import DigitalPDFFormatter
-from doc_intelligence.pdf.extractor import DigitalPDFExtractor
+from doc_intelligence.pdf.formatter import PDFFormatter
+from doc_intelligence.pdf.extractor import PDFExtractor
 from doc_intelligence.llm import OpenAILLM
 
 llm = OpenAILLM()
@@ -129,7 +129,7 @@ parser = ScannedPDFParser(
 )
 processor = DocumentProcessor(
     parser=parser,
-    formatter=DigitalPDFFormatter(),
-    extractor=DigitalPDFExtractor(llm),
+    formatter=PDFFormatter(),
+    extractor=PDFExtractor(llm),
 )
 ```

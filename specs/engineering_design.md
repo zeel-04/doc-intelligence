@@ -1,8 +1,8 @@
 # Engineering Design Document — doc_intelligence
 
-**Version:** 0.3.0
+**Version:** 0.3.1
 **Status:** Living document
-**Last updated:** 2026-04-04
+**Last updated:** 2026-04-05
 
 ---
 
@@ -16,8 +16,8 @@ Everything described in this section is already implemented and tested.
 doc_intelligence/
 ├── pdf/
 │   ├── parser.py       # PDFParser (ABC), DigitalPDFParser, ScannedPDFParser
-│   ├── formatter.py    # DigitalPDFFormatter (block-aware markup)
-│   ├── extractor.py    # DigitalPDFExtractor (block-level citations)
+│   ├── formatter.py    # PDFFormatter (block-aware markup)
+│   ├── extractor.py    # PDFExtractor (block-level citations)
 │   ├── processor.py    # DocumentProcessor, PDFProcessor
 │   ├── schemas.py      # PDF, PDFDocument, PDFExtractionConfig
 │   ├── types.py        # PDFExtractionMode (SINGLE_PASS, MULTI_PASS)
@@ -46,12 +46,12 @@ DigitalPDFParser.parse()
     │  (one TextBlock per text line — block-level addressing gives line precision)
     │
     ▼
-DigitalPDFFormatter.format_document_for_llm()
+PDFFormatter.format_document_for_llm()
     → str: <page number="0"><block index="0" type="text">text</block>…</page>
     │  (ImageBlock / ChartBlock are skipped)
     │
     ▼
-DigitalPDFExtractor.extract()
+PDFExtractor.extract()
     → citations use {"page": <int>, "blocks": [<int>]}
     → enrich_citations_with_bboxes(…)        # resolve block index → bbox
     → strip_citations(…)                     # unwrap {value, citations} → plain value
@@ -66,7 +66,7 @@ ExtractionResult(data=<PydanticModel instance>, metadata=<citation dict>)
 - `Document.extraction_mode` is declared on the base `Document` model; `PDFDocument` defaults it to `PDFExtractionMode.SINGLE_PASS`.
 - All LLM interaction goes through `BaseLLM.generate_text`; `generate_structured_output` exists but is not used by the current extractor.
 - Citation enrichment is a pure function over a dict — no mutation of the Pydantic model.
-- `PDFExtractionMode.MULTI_PASS` is fully implemented via three-pass extraction in `DigitalPDFExtractor` (Phase 1).
+- `PDFExtractionMode.MULTI_PASS` is fully implemented via three-pass extraction in `PDFExtractor` (Phase 1).
 - `config.py` uses `pydantic-settings` (`DocIntelligenceConfig`) with `DOC_INTEL_` env prefix (Phase 1).
 - `BaseParser` is generic: `BaseParser(ABC, Generic[TDocument])` where `TDocument = TypeVar("TDocument", bound=Document)`. `PDFParser` narrows to `BaseParser[PDFDocument]`.
 - `DocumentProcessor` is stateless w.r.t. documents — a fresh `PDFDocument` is created per `extract()` call (Client API Redesign).
@@ -140,7 +140,7 @@ check_schema_depth(model: type[BaseModel], max_depth: int, _current: int = 0) ->
 
 ### 1.4 Multi-pass extraction
 
-`PDFExtractionMode.MULTI_PASS` is implemented in `DigitalPDFExtractor`. The three passes are private methods; `extract()` orchestrates them.
+`PDFExtractionMode.MULTI_PASS` is implemented in `PDFExtractor`. The three passes are private methods; `extract()` orchestrates them.
 
 #### Pass 1 — raw extraction
 
@@ -191,7 +191,7 @@ class PDFDocument(Document):
 
 The final `extract()` return shape is unchanged: `ExtractionResult(data=…, metadata=…)` — access via `.data` and `.metadata`.
 
-> **Note on `extraction_config`:** `BaseExtractor.extract()` accepts `extraction_config: dict[str, Any]` for interface compatibility. `DocumentProcessor` builds it from `PDFExtractionConfig` and passes it through, but `DigitalPDFExtractor` reads extraction behaviour (mode, page filtering, citation flag) from the `document` object directly. `extraction_config` is not consumed by the current extractor implementation.
+> **Note on `extraction_config`:** `BaseExtractor.extract()` accepts `extraction_config: dict[str, Any]` for interface compatibility. `DocumentProcessor` builds it from `PDFExtractionConfig` and passes it through, but `PDFExtractor` reads extraction behaviour (mode, page filtering, citation flag) from the `document` object directly. `extraction_config` is not consumed by the current extractor implementation.
 
 ---
 
@@ -390,7 +390,7 @@ result = proc.extract(uri="a.pdf", response_format=Schema, include_citations=Tru
 - Parse scanned PDFs (image-based) into the same `PDFDocument` schema as digital PDFs.
 - Layout detection and OCR engines are swappable without changing the pipeline.
 - OCR of regions within a page runs in parallel via `asyncio`.
-- The existing `DigitalPDFFormatter` and `DigitalPDFExtractor` work without modification on OCR output.
+- The existing `PDFFormatter` and `PDFExtractor` work without modification on OCR output.
 
 ---
 
@@ -404,12 +404,12 @@ The existing digital components keep their names. New OCR components are named t
 | Parser            | `DigitalPDFParser`                     | `ScannedPDFParser`                                  |
 | Layout detector   | —                                      | `BaseLayoutDetector` (ABC) — user supplies implementation |
 | OCR engine        | —                                      | `BaseOCREngine` (ABC) — user supplies implementation      |
-| Formatter         | `DigitalPDFFormatter`                  | *reused as-is*                                      |
-| Extractor         | `DigitalPDFExtractor`                  | *reused as-is*                                      |
+| Formatter         | `PDFFormatter`                  | *reused as-is*                                      |
+| Extractor         | `PDFExtractor`                  | *reused as-is*                                      |
 | Processor factory | `DocumentProcessor.from_digital_pdf()` | `DocumentProcessor.from_scanned_pdf()`              |
 
 
-> **Decision:** `DigitalPDFFormatter` and `DigitalPDFExtractor` keep their current names. Both components operate on the `PDF → Page → Line` schema, which both the digital and scanned parsers produce. No rename is needed — "Digital" refers to the origin of the implementation, not a restriction on the data it can process.
+> **Decision:** `PDFFormatter` and `PDFExtractor` use the generic `PDF` prefix (not `Digital`) because they operate on the `PDF → Page → ContentBlock` schema, which both the digital and scanned parsers produce. Only the parsers carry `Digital`/`Scanned` prefixes since parsing is type-specific.
 
 ---
 
@@ -522,8 +522,8 @@ def from_scanned_pdf(
             layout_detector=layout_detector,
             ocr_engine=ocr_engine,
         ),
-        formatter=DigitalPDFFormatter(),
-        extractor=DigitalPDFExtractor(llm),
+        formatter=PDFFormatter(),
+        extractor=PDFExtractor(llm),
         **kwargs,
     )
 ```

@@ -188,7 +188,7 @@ Each line is a separate text line in the PDF so the parser produces exactly 3 `L
 
 ### Phase 3: Format Tests
 
-**Goal:** Data-driven tests for `DigitalPDFFormatter.format_document_for_llm()`.
+**Goal:** Data-driven tests for `PDFFormatter.format_document_for_llm()`.
 
 **Files modified/created:**
 - `tests/integration/test_cases.py` — add `FORMAT_CASES`
@@ -197,7 +197,7 @@ Each line is a separate text line in the PDF so the parser produces exactly 3 `L
 **Test logic:**
 1. Parse the PDF with `DigitalPDFParser`
 2. Set `doc.include_citations` from the case dict
-3. Call `DigitalPDFFormatter().format_document_for_llm(doc)`
+3. Call `PDFFormatter().format_document_for_llm(doc)`
 4. Assert `contains` / `not_contains` substrings
 
 **Verification:** `uv run pytest tests/integration/test_format.py -v` — green.

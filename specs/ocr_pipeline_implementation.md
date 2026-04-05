@@ -92,8 +92,8 @@ The `Page.lines` field is replaced by `Page.blocks`. This ripples through:
 |---|---|
 | `Page` schema | `lines: list[Line]` → `blocks: list[ContentBlock]` |
 | `DigitalPDFParser` | Wrap extracted lines in `TextBlock`. Table extraction is **not** added in this sub-phase — all content becomes `TextBlock`s. Table extraction from pdfplumber is a follow-up enhancement. |
-| `DigitalPDFFormatter` | Iterate over `page.blocks` instead of `page.lines`. For `TextBlock`, format lines as before. For `TableBlock`, call `table_block_to_text_block()` first, then format. |
-| `DigitalPDFExtractor` | No change — operates on formatter output (strings), not on `Page` directly. |
+| `PDFFormatter` | Iterate over `page.blocks` instead of `page.lines`. For `TextBlock`, format lines as before. For `TableBlock`, call `table_block_to_text_block()` first, then format. |
+| `PDFExtractor` | No change — operates on formatter output (strings), not on `Page` directly. |
 | `enrich_citations_with_bboxes` (pdf/utils.py) | Update line lookups to work with blocks. Lines are addressed by a global line index across all blocks on a page, preserving backward compat with citation line numbers. |
 | Tests | Update all tests that construct `Page(lines=[...])` to use `Page(blocks=[TextBlock(lines=[...])])`. |
 
@@ -247,7 +247,7 @@ tests/pdf/test_processor.py            — add scanned pipeline tests
   ) -> "DocumentProcessor":
   ```
   - Defaults to `PaddleLayoutDetector()` and `PaddleOCREngine()` via deferred import.
-  - Reuses `DigitalPDFFormatter` and `DigitalPDFExtractor` — no new formatter or extractor needed.
+  - Reuses `PDFFormatter` and `PDFExtractor` — no new formatter or extractor needed.
 
 - `PDFProcessor` update: add `document_type` parameter (or a `from_scanned_pdf` convenience) so the high-level API also supports scanned PDFs.
 

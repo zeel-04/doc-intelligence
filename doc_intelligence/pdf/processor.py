@@ -11,8 +11,8 @@ from doc_intelligence.base import (
 from doc_intelligence.config import settings
 from doc_intelligence.llm import BaseLLM, create_llm
 from doc_intelligence.ocr.base import BaseLayoutDetector, BaseOCREngine
-from doc_intelligence.pdf.extractor import DigitalPDFExtractor
-from doc_intelligence.pdf.formatter import DigitalPDFFormatter
+from doc_intelligence.pdf.extractor import PDFExtractor
+from doc_intelligence.pdf.formatter import PDFFormatter
 from doc_intelligence.pdf.parser import DigitalPDFParser, ScannedPDFParser
 from doc_intelligence.pdf.schemas import PDFDocument, PDFExtractionConfig
 from doc_intelligence.pdf.types import PDFExtractionMode
@@ -61,8 +61,8 @@ class DocumentProcessor:
         """
         return cls(
             parser=DigitalPDFParser(),
-            formatter=DigitalPDFFormatter(),
-            extractor=DigitalPDFExtractor(llm),
+            formatter=PDFFormatter(),
+            extractor=PDFExtractor(llm),
             **kwargs,
         )
 
@@ -78,8 +78,8 @@ class DocumentProcessor:
         """Create a processor pre-configured for scanned PDF extraction.
 
         Uses :class:`~doc_intelligence.pdf.parser.ScannedPDFParser` for
-        parsing, reusing :class:`DigitalPDFFormatter` and
-        :class:`DigitalPDFExtractor` for the rest of the pipeline — no new
+        parsing, reusing :class:`PDFFormatter` and
+        :class:`PDFExtractor` for the rest of the pipeline — no new
         formatter or extractor is needed.
 
         Args:
@@ -113,8 +113,8 @@ class DocumentProcessor:
                 ocr_engine=ocr_engine,
                 dpi=dpi,
             ),
-            formatter=DigitalPDFFormatter(),
-            extractor=DigitalPDFExtractor(llm),
+            formatter=PDFFormatter(),
+            extractor=PDFExtractor(llm),
             **kwargs,
         )
 

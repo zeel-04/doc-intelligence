@@ -1,10 +1,10 @@
-"""Data-driven integration tests for DigitalPDFFormatter."""
+"""Data-driven integration tests for PDFFormatter."""
 
 from collections.abc import Callable
 
 import pytest
 
-from doc_intelligence.pdf.formatter import DigitalPDFFormatter
+from doc_intelligence.pdf.formatter import PDFFormatter
 from doc_intelligence.pdf.parser import DigitalPDFParser
 from doc_intelligence.pdf.schemas import PDFDocument
 from tests.integration.test_cases import FORMAT_CASES
@@ -23,7 +23,7 @@ class TestFormat:
         doc = parser.parse(doc)
         doc.include_citations = case["include_citations"]
 
-        formatter = DigitalPDFFormatter()
+        formatter = PDFFormatter()
         output = formatter.format_document_for_llm(doc)
 
         for substring in case["expected"]["contains"]:

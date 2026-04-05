@@ -7,8 +7,8 @@ import numpy as np
 import pytest
 from pydantic import BaseModel, Field
 
-from doc_intelligence.pdf.extractor import DigitalPDFExtractor
-from doc_intelligence.pdf.formatter import DigitalPDFFormatter
+from doc_intelligence.pdf.extractor import PDFExtractor
+from doc_intelligence.pdf.formatter import PDFFormatter
 from doc_intelligence.pdf.parser import DigitalPDFParser, ScannedPDFParser
 from doc_intelligence.pdf.processor import DocumentProcessor, PDFProcessor
 from doc_intelligence.pdf.schemas import PDF, PDFDocument
@@ -65,8 +65,8 @@ class TestFromDigitalPDF:
     def test_creates_correct_types(self, fake_llm: FakeLLM):
         proc = DocumentProcessor.from_digital_pdf(llm=fake_llm)
         assert isinstance(proc.parser, DigitalPDFParser)
-        assert isinstance(proc.formatter, DigitalPDFFormatter)
-        assert isinstance(proc.extractor, DigitalPDFExtractor)
+        assert isinstance(proc.formatter, PDFFormatter)
+        assert isinstance(proc.extractor, PDFExtractor)
 
     def test_no_document_on_processor(self, fake_llm: FakeLLM):
         proc = DocumentProcessor.from_digital_pdf(llm=fake_llm)
@@ -497,21 +497,21 @@ class TestFromScannedPDF:
         )
         assert isinstance(proc.parser, ScannedPDFParser)
 
-    def test_uses_digital_formatter(self, fake_llm: FakeLLM) -> None:
+    def test_uses_pdf_formatter(self, fake_llm: FakeLLM) -> None:
         proc = DocumentProcessor.from_scanned_pdf(
             llm=fake_llm,
             layout_detector=FakeLayoutDetector(),
             ocr_engine=FakeOCREngine(),
         )
-        assert isinstance(proc.formatter, DigitalPDFFormatter)
+        assert isinstance(proc.formatter, PDFFormatter)
 
-    def test_uses_digital_extractor(self, fake_llm: FakeLLM) -> None:
+    def test_uses_pdf_extractor(self, fake_llm: FakeLLM) -> None:
         proc = DocumentProcessor.from_scanned_pdf(
             llm=fake_llm,
             layout_detector=FakeLayoutDetector(),
             ocr_engine=FakeOCREngine(),
         )
-        assert isinstance(proc.extractor, DigitalPDFExtractor)
+        assert isinstance(proc.extractor, PDFExtractor)
 
     def test_custom_layout_detector_injected(self, fake_llm: FakeLLM) -> None:
         detector = FakeLayoutDetector()
@@ -586,7 +586,7 @@ class TestScannedPipelineEndToEnd:
                 layout_detector=FakeLayoutDetector(regions=regions),
                 ocr_engine=FakeOCREngine(lines=lines),
             ),
-            formatter=DigitalPDFFormatter(),
+            formatter=PDFFormatter(),
             extractor=FakeExtractor(llm=fake_llm, result=result),
         )
 
@@ -645,7 +645,7 @@ class TestScannedPipelineEndToEnd:
                     lines=[Line(text="ocr line", bounding_box=bbox)]
                 ),
             ),
-            formatter=DigitalPDFFormatter(),
+            formatter=PDFFormatter(),
             extractor=CapturingExtractor(
                 llm=fake_llm,
                 result=ExtractionResult(
@@ -670,8 +670,8 @@ class TestScannedPipelineEndToEnd:
         """from_digital_pdf() still wires DigitalPDFParser correctly."""
         proc = DocumentProcessor.from_digital_pdf(llm=fake_llm)
         assert isinstance(proc.parser, DigitalPDFParser)
-        assert isinstance(proc.formatter, DigitalPDFFormatter)
-        assert isinstance(proc.extractor, DigitalPDFExtractor)
+        assert isinstance(proc.formatter, PDFFormatter)
+        assert isinstance(proc.extractor, PDFExtractor)
 
 
 # ---------------------------------------------------------------------------
@@ -695,14 +695,14 @@ class TestPDFProcessorDocumentType:
         )
         assert isinstance(proc._processor.parser, ScannedPDFParser)
 
-    def test_scanned_type_uses_digital_formatter(self, fake_llm: FakeLLM) -> None:
+    def test_scanned_type_uses_pdf_formatter(self, fake_llm: FakeLLM) -> None:
         proc = PDFProcessor(
             llm=fake_llm,
             document_type="scanned",
             layout_detector=FakeLayoutDetector(),
             ocr_engine=FakeOCREngine(),
         )
-        assert isinstance(proc._processor.formatter, DigitalPDFFormatter)
+        assert isinstance(proc._processor.formatter, PDFFormatter)
 
     def test_scanned_type_missing_detector_raises(self, fake_llm: FakeLLM) -> None:
         with pytest.raises(ValueError, match="layout_detector is required"):

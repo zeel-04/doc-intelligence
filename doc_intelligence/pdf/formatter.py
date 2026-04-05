@@ -40,7 +40,7 @@ def _render_block_text(block: ContentBlock) -> str:
     return ""
 
 
-class DigitalPDFFormatter(BaseFormatter):
+class PDFFormatter(BaseFormatter):
     def _format_with_block_indices(self, content: PDF) -> list[str]:
         """Format pages with block-index tags for citation support."""
         paginated: list[str] = []
@@ -87,7 +87,7 @@ class DigitalPDFFormatter(BaseFormatter):
         raw_content = document.content
         if raw_content is None:
             raise ValueError(
-                "DigitalPDFFormatter: Document content is None. "
+                "PDFFormatter: Document content is None. "
                 "Make sure to parse the document before formatting."
             )
         pdf_content: PDF = raw_content  # type: ignore[assignment]

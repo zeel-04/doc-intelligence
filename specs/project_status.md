@@ -21,8 +21,8 @@
 ## Baseline — Core Architecture
 
 - [x] `DigitalPDFParser` — parse text-based PDFs into `PDFDocument`
-- [x] `DigitalPDFFormatter` — format pages for LLM with/without line numbers
-- [x] `DigitalPDFExtractor` — single-pass extraction with citation enrichment
+- [x] `PDFFormatter` — format pages for LLM with/without line numbers
+- [x] `PDFExtractor` — single-pass extraction with citation enrichment
 - [x] `DocumentProcessor` — orchestrates parse → format → extract
 - [x] Schemas: `BoundingBox`, `Line`, `Page`, `PDF`, `PDFDocument`, `Document`
 - [x] `pydantic_to_json_instance_schema` — schema generation for LLM prompts
@@ -33,7 +33,7 @@
 
 - [x] `DocIntelligenceConfig` (pydantic-settings with `DOC_INTEL_` env prefix)
 - [x] `restrictions.py` — `check_pdf_size`, `check_page_count`, `check_schema_depth`
-- [x] Three-pass extraction in `DigitalPDFExtractor`:
+- [x] Three-pass extraction in `PDFExtractor`:
   - [x] Pass 1 — raw extraction (no citations)
   - [x] Pass 2 — page grounding (field → page mapping)
   - [x] Pass 3 — line grounding on relevant pages only
