@@ -25,18 +25,13 @@ A library for parsing, formatting, and processing documents that can be used to 
 ### Install with uv
 
 ```bash
-# Digital PDFs only
 uv pip install doc-intelligence
-
-# Scanned PDFs (adds PaddleOCR)
-uv pip install "doc-intelligence[ocr]"
 ```
 
 Or with pip:
 
 ```bash
 pip install doc-intelligence
-pip install "doc-intelligence[ocr]"  # for scanned PDF support
 ```
 
 ## Quick Start

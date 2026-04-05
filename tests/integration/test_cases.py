@@ -37,22 +37,27 @@ PARSE_CASES: list[dict[str, Any]] = [
 # ---------------------------------------------------------------------------
 FORMAT_CASES: list[dict[str, Any]] = [
     {
-        "id": "with_line_numbers",
-        "description": "Format with line numbers (citations mode)",
+        "id": "with_block_indices",
+        "description": "Format with block indices (citations mode)",
         "pdf": "simple_one_page.pdf",
         "include_citations": True,
         "expected": {
-            "contains": ["0: Name: John", "1: Age: 30", "<page number=0>"],
+            "contains": [
+                '<block index="0" type="text">',
+                "Name: John",
+                "Age: 30",
+                '<page number="0">',
+            ],
         },
     },
     {
-        "id": "without_line_numbers",
-        "description": "Format without line numbers (no citations)",
+        "id": "without_block_indices",
+        "description": "Format without block indices (no citations)",
         "pdf": "simple_one_page.pdf",
         "include_citations": False,
         "expected": {
-            "contains": ["Name: John", "Age: 30", "<page number=0>"],
-            "not_contains": ["0: Name"],
+            "contains": ["Name: John", "Age: 30", '<page number="0">'],
+            "not_contains": ["<block"],
         },
     },
 ]
@@ -84,9 +89,9 @@ EXTRACT_CASES: list[dict[str, Any]] = [
         },
         "mock_llm_response": (
             '{"name": {"value": "John", "citations": '
-            '[{"page": 0, "lines": [0]}]}, '
+            '[{"page": 0, "blocks": [0]}]}, '
             '"age": {"value": 30, "citations": '
-            '[{"page": 0, "lines": [1]}]}}'
+            '[{"page": 0, "blocks": [1]}]}}'
         ),
         "expected_data": {"name": "John", "age": 30},
     },

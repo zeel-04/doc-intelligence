@@ -1,22 +1,25 @@
-"""Tests for schemas.pdf module."""
+"""Tests for pdf.schemas and core schema types."""
 
 import pytest
 from pydantic import ValidationError
 
 from doc_intelligence.pdf.schemas import (
     PDF,
-    Cell,
-    ContentBlock,
-    Page,
     PDFDocument,
     PDFExtractionConfig,
-    TableBlock,
-    TextBlock,
-    blocks_to_lines,
-    table_block_to_text_block,
 )
 from doc_intelligence.pdf.types import PDFExtractionMode
-from doc_intelligence.schemas.core import BoundingBox, Line
+from doc_intelligence.schemas.core import (
+    BoundingBox,
+    Cell,
+    ChartBlock,
+    ContentBlock,
+    ImageBlock,
+    Line,
+    Page,
+    TableBlock,
+    TextBlock,
+)
 
 
 # ---------------------------------------------------------------------------
@@ -120,17 +123,70 @@ class TestTableBlock:
 
 
 # ---------------------------------------------------------------------------
+# ImageBlock
+# ---------------------------------------------------------------------------
+class TestImageBlock:
+    def test_construction_minimal(self):
+        block = ImageBlock()
+        assert block.block_type == "image"
+        assert block.bounding_box is None
+        assert block.description is None
+        assert block.image_uri is None
+
+    def test_with_all_fields(self, sample_bbox: BoundingBox):
+        block = ImageBlock(
+            bounding_box=sample_bbox,
+            description="a photo",
+            image_uri="/tmp/img.png",
+        )
+        assert block.bounding_box == sample_bbox
+        assert block.description == "a photo"
+        assert block.image_uri == "/tmp/img.png"
+
+
+# ---------------------------------------------------------------------------
+# ChartBlock
+# ---------------------------------------------------------------------------
+class TestChartBlock:
+    def test_construction_minimal(self):
+        block = ChartBlock()
+        assert block.block_type == "chart"
+        assert block.bounding_box is None
+        assert block.description is None
+        assert block.data_table is None
+        assert block.image_uri is None
+
+    def test_with_all_fields(self, sample_bbox: BoundingBox):
+        block = ChartBlock(
+            bounding_box=sample_bbox,
+            description="bar chart",
+            data_table=[[Cell(text="Q1"), Cell(text="100")]],
+            image_uri="/tmp/chart.png",
+        )
+        assert block.bounding_box == sample_bbox
+        assert block.description == "bar chart"
+        assert block.data_table is not None and len(block.data_table) == 1
+
+
+# ---------------------------------------------------------------------------
 # ContentBlock discriminated union
 # ---------------------------------------------------------------------------
 class TestContentBlock:
     def test_text_block_discriminated(self, sample_lines: list[Line]):
-        # Pydantic should resolve via block_type discriminator
         block: ContentBlock = TextBlock(lines=sample_lines)
         assert isinstance(block, TextBlock)
 
     def test_table_block_discriminated(self):
         block: ContentBlock = TableBlock(rows=[])
         assert isinstance(block, TableBlock)
+
+    def test_image_block_discriminated(self):
+        block: ContentBlock = ImageBlock()
+        assert isinstance(block, ImageBlock)
+
+    def test_chart_block_discriminated(self):
+        block: ContentBlock = ChartBlock()
+        assert isinstance(block, ChartBlock)
 
 
 # ---------------------------------------------------------------------------
@@ -293,107 +349,3 @@ class TestPDFExtractionConfig:
     def test_missing_include_citations_raises(self):
         with pytest.raises(ValidationError):
             PDFExtractionConfig(extraction_mode=PDFExtractionMode.SINGLE_PASS)  # type: ignore[call-arg]
-
-
-# ---------------------------------------------------------------------------
-# table_block_to_text_block
-# ---------------------------------------------------------------------------
-class TestTableBlockToTextBlock:
-    def test_single_row(self, sample_bbox: BoundingBox):
-        table = TableBlock(
-            rows=[[Cell(text="Name"), Cell(text="Age")]],
-            bounding_box=sample_bbox,
-        )
-        result = table_block_to_text_block(table)
-        assert isinstance(result, TextBlock)
-        assert len(result.lines) == 1
-        assert result.lines[0].text == "| Name | Age |"
-
-    def test_multiple_rows(self):
-        table = TableBlock(
-            rows=[
-                [Cell(text="a"), Cell(text="b")],
-                [Cell(text="c"), Cell(text="d")],
-            ]
-        )
-        result = table_block_to_text_block(table)
-        assert len(result.lines) == 2
-        assert result.lines[0].text == "| a | b |"
-        assert result.lines[1].text == "| c | d |"
-
-    def test_empty_table_produces_no_lines(self):
-        result = table_block_to_text_block(TableBlock(rows=[]))
-        assert result.lines == []
-
-    def test_cell_bbox_used_when_available(self, sample_bbox: BoundingBox):
-        cell_bbox = BoundingBox(x0=0.1, top=0.1, x1=0.9, bottom=0.2)
-        table = TableBlock(rows=[[Cell(text="x", bounding_box=cell_bbox)]])
-        result = table_block_to_text_block(table)
-        assert result.lines[0].bounding_box == cell_bbox
-
-    def test_table_bbox_used_as_fallback(self, sample_bbox: BoundingBox):
-        table = TableBlock(rows=[[Cell(text="x")]], bounding_box=sample_bbox)
-        result = table_block_to_text_block(table)
-        assert result.lines[0].bounding_box == sample_bbox
-
-    def test_zero_bbox_used_when_no_bbox_available(self):
-        table = TableBlock(rows=[[Cell(text="x")]])
-        result = table_block_to_text_block(table)
-        bbox = result.lines[0].bounding_box
-        assert bbox == BoundingBox(x0=0.0, top=0.0, x1=1.0, bottom=1.0)
-
-    def test_block_type_is_text(self):
-        result = table_block_to_text_block(TableBlock(rows=[]))
-        assert result.block_type == "text"
-
-    def test_bounding_box_preserved(self, sample_bbox: BoundingBox):
-        table = TableBlock(rows=[], bounding_box=sample_bbox)
-        result = table_block_to_text_block(table)
-        assert result.bounding_box == sample_bbox
-
-
-# ---------------------------------------------------------------------------
-# blocks_to_lines
-# ---------------------------------------------------------------------------
-class TestBlocksToLines:
-    def test_single_text_block(self, sample_lines: list[Line]):
-        blocks: list[ContentBlock] = [TextBlock(lines=sample_lines)]
-        result = blocks_to_lines(blocks)
-        assert result == sample_lines
-
-    def test_multiple_text_blocks(self, sample_lines: list[Line]):
-        blocks: list[ContentBlock] = [
-            TextBlock(lines=sample_lines[:1]),
-            TextBlock(lines=sample_lines[1:]),
-        ]
-        result = blocks_to_lines(blocks)
-        assert result == sample_lines
-
-    def test_table_block_converted(self, sample_bbox: BoundingBox):
-        table = TableBlock(
-            rows=[[Cell(text="x"), Cell(text="y")]],
-            bounding_box=sample_bbox,
-        )
-        result = blocks_to_lines([table])
-        assert len(result) == 1
-        assert result[0].text == "| x | y |"
-
-    def test_mixed_blocks_preserve_order(
-        self, sample_lines: list[Line], sample_bbox: BoundingBox
-    ):
-        text_block = TextBlock(lines=sample_lines[:1])
-        table_block = TableBlock(
-            rows=[[Cell(text="cell")]],
-            bounding_box=sample_bbox,
-        )
-        result = blocks_to_lines([text_block, table_block])
-        assert len(result) == 2
-        assert result[0] == sample_lines[0]
-        assert result[1].text == "| cell |"
-
-    def test_empty_blocks_list(self):
-        assert blocks_to_lines([]) == []
-
-    def test_empty_text_block(self):
-        result = blocks_to_lines([TextBlock(lines=[])])
-        assert result == []

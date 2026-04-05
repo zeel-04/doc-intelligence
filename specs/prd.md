@@ -1,8 +1,8 @@
 # Product Requirements Document — doc_intelligence
 
-**Version:** 0.1.9
+**Version:** 0.3.0
 **Status:** Living document
-**Last updated:** 2026-03-29
+**Last updated:** 2026-04-04
 
 ---
 
@@ -32,7 +32,7 @@ Developers need a library that:
 - Provide a clean, composable Python API for document extraction that follows SOLID principles.
 - Support multiple document formats (starting with PDFs, digital and scanned).
 - Support multiple LLM providers through a single consistent interface.
-- Deliver extraction results with optional, fine-grained source citations (page → line → bounding box).
+- Deliver extraction results with optional, fine-grained source citations (page → block → bounding box).
 - Be configurable enough for production use (limits, async, batching) without being over-engineered for simple cases.
 - Remain framework-agnostic — no FastAPI, no Django, no mandatory cloud service.
 
@@ -90,10 +90,10 @@ result = processor.extract(
 
 **What happens under the hood:**
 
-1. The PDF is parsed page by page; each line is extracted with its bounding box, normalized to a 0–1 coordinate scale.
-2. The document is formatted as a structured text prompt for the LLM.
-3. The LLM returns JSON matching the output schema (with optional citation wrappers if citations are enabled).
-4. Citations are enriched with bounding boxes from the parser output.
+1. The PDF is parsed page by page; each text line becomes its own content block with a bounding box, normalized to a 0–1 coordinate scale.
+2. The document is formatted as block-aware markup for the LLM (each block tagged with an index and type).
+3. The LLM returns JSON matching the output schema (with optional block-level citation wrappers if citations are enabled).
+4. Citations are enriched with bounding boxes by resolving block indices from the parser output.
 5. The result is returned as a typed Pydantic instance plus raw citation metadata.
 
 **Extraction modes:**
@@ -113,8 +113,8 @@ The LLM receives the full document text and returns a clean Pydantic model insta
 **Pass 2 — Page grounding:**
 The LLM receives the Pass 1 answer (as context) plus the full document and returns a mapping of field paths to the page numbers where the data appears. This step is intentionally coarse — pages are cheap to locate.
 
-**Pass 3 — Line and bbox grounding:**
-The library reduces the document to only the pages identified in Pass 2 and sends that smaller context to the LLM, asking for specific line numbers. Bounding boxes are resolved deterministically from the parser output, not by the LLM.
+**Pass 3 — Block and bbox grounding:**
+The library reduces the document to only the pages identified in Pass 2 and sends that smaller context to the LLM, asking for specific block indices. Bounding boxes are resolved deterministically from the parser output, not by the LLM.
 
 **Intermediate results** are stored on the document object so callers can inspect or cache partial results if the pipeline is interrupted.
 
@@ -158,8 +158,8 @@ Many real-world documents are scanned images embedded in PDF containers. pdfplum
 
 **The OCR pipeline has three steps:**
 
-1. **Layout detection:** A layout model (PaddleOCR's layout model by default) runs on each page image and identifies distinct regions — paragraphs, tables, headers, figures. The library is designed so the layout model can be swapped without changing the rest of the pipeline.
-2. **OCR per region:** Each detected region is sent to an OCR engine (PaddleOCR by default, also swappable) to extract its text and character-level bounding boxes. Regions within a page are processed in parallel to minimize latency.
+1. **Layout detection:** A user-supplied layout detector (implementing `BaseLayoutDetector`) runs on each page image and identifies distinct regions — paragraphs, tables, headers, figures. The library is designed so any layout model can be plugged in without changing the rest of the pipeline.
+2. **OCR per region:** Each detected region is sent to a user-supplied OCR engine (implementing `BaseOCREngine`) to extract its text and character-level bounding boxes. Regions within a page are processed in parallel to minimize latency.
 3. **Assembly:** The OCR results are assembled into the standard `PDF → Page → Line` schema. From this point forward, the scanned PDF goes through the same formatter and extractor as a digital PDF.
 
 **Naming:** The digital parser remains `DigitalPDFParser`. The new OCR-based parser is `ScannedPDFParser`. Both produce `PDFDocument` objects; a `DocumentProcessor.from_scanned_pdf()` factory creates the appropriate pipeline.

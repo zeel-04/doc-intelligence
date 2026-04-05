@@ -168,47 +168,9 @@ tests/ocr/test_base.py                 — tests for ABCs
 
 ---
 
-## Sub-phase 3.2 — PaddleOCR Implementations [DONE]
+## Sub-phase 3.2 — PaddleOCR Implementations [REMOVED]
 
-**Goal:** Implement `PaddleLayoutDetector` and `PaddleOCREngine` using PaddleOCR.
-
-**What to build:**
-
-```
-doc_intelligence/ocr/paddle.py         — PaddleLayoutDetector, PaddleOCREngine
-tests/ocr/test_paddle.py              — tests (mocked PaddleOCR)
-```
-
-**Details:**
-
-- `PaddleLayoutDetector`:
-  - Deferred import of `paddleocr.PPStructure` inside `__init__`.
-  - `detect()` runs the layout model and converts results to `list[LayoutRegion]`.
-  - Helper `_to_layout_region()` maps PaddleOCR's raw bbox + type output to `LayoutRegion`.
-
-- `PaddleOCREngine`:
-  - Deferred import of `paddleocr.PaddleOCR` inside `__init__`.
-  - `ocr()` runs OCR on a cropped region image, returns `list[Line]`.
-  - Helper `_to_line()` maps PaddleOCR's `[[x0,y0],[x1,y1],[x2,y2],[x3,y3]], (text, confidence)` to `Line(text=..., bounding_box=...)` with normalized bounding boxes.
-  - Bounding box normalization: convert from pixel coordinates to 0–1 scale relative to region image dimensions.
-
-- Deferred imports ensure the library is importable without PaddleOCR installed.
-
-- Optional dependency already declared in `pyproject.toml`:
-  ```toml
-  ocr = ["paddleocr>=2.9.0", "paddlepaddle>=3.0.0"]
-  ```
-
-**Tests:**
-- All PaddleOCR calls are mocked — no real ML inference in tests.
-- Test `detect()` with mocked PPStructure output → verify correct `LayoutRegion` list.
-- Test `ocr()` with mocked PaddleOCR output → verify correct `Line` list with normalized bboxes.
-- Test edge cases: empty results, single-line regions, multi-line regions.
-- Test deferred import behavior: importing `doc_intelligence.ocr` does not require PaddleOCR.
-
-**Verification:** `uv run pytest tests/ocr/` + `ruff check` + `ruff format --check`
-
-**Exit criteria:** Both implementations pass all tests with mocked PaddleOCR. Library remains importable without PaddleOCR installed.
+This sub-phase was removed. The library no longer ships a concrete OCR implementation. Users supply their own `BaseLayoutDetector` and `BaseOCREngine` implementations.
 
 ---
 
@@ -367,7 +329,7 @@ Each sub-phase depends only on the previous one. The codebase is green after eve
 |---|---|---|
 | 3.0 | — | `pdf/schemas.py`, `pdf/parser.py`, `pdf/formatter.py`, `pdf/utils.py`, `tests/pdf/test_schemas.py`, `tests/pdf/test_parser.py`, `tests/pdf/test_formatter.py`, `tests/pdf/test_utils.py`, `tests/conftest.py` |
 | 3.1 | `ocr/__init__.py`, `ocr/base.py`, `tests/ocr/__init__.py`, `tests/ocr/test_base.py` | `tests/conftest.py` (add fakes) |
-| 3.2 | `ocr/paddle.py`, `tests/ocr/test_paddle.py` | — |
+| 3.2 | *(removed — no bundled OCR implementation)* | — |
 | 3.3 | `pdf/parser.py` (ScannedPDFParser), `tests/pdf/test_ocr_parser.py` | — |
 | 3.4 | — | `pdf/processor.py`, `extract.py`, `tests/pdf/test_processor.py` |
 | 3.5 | — | `ocr/__init__.py`, `docs/`, `README.md` |

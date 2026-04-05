@@ -64,8 +64,9 @@ class TestDigitalPDFParser:
         assert isinstance(result, PDFDocument)
         assert result.content is not None
         assert len(result.content.pages) == 1
-        assert len(result.content.pages[0].blocks) == 1
-        assert len(result.content.pages[0].blocks[0].lines) == 2  # type: ignore[union-attr]
+        assert len(result.content.pages[0].blocks) == 2
+        assert result.content.pages[0].blocks[0].lines[0].text == "Hello world"  # type: ignore[union-attr]
+        assert result.content.pages[0].blocks[1].lines[0].text == "Second line"  # type: ignore[union-attr]
 
     @patch("doc_intelligence.pdf.parser.requests")
     @patch("doc_intelligence.pdf.parser.pdfplumber")

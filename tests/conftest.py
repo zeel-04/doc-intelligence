@@ -8,14 +8,16 @@ from pydantic import BaseModel, Field
 
 from doc_intelligence.base import BaseExtractor, BaseFormatter, BaseLLM, BaseParser
 from doc_intelligence.ocr.base import BaseLayoutDetector, BaseOCREngine, LayoutRegion
-from doc_intelligence.pdf.schemas import PDF, Page, PDFDocument, TextBlock
+from doc_intelligence.pdf.schemas import PDF, PDFDocument
 from doc_intelligence.pdf.types import PDFExtractionMode
 from doc_intelligence.schemas.core import (
     BoundingBox,
     Document,
     ExtractionResult,
     Line,
+    Page,
     PydanticModel,
+    TextBlock,
 )
 
 
@@ -183,8 +185,15 @@ def sample_lines(sample_bbox: BoundingBox) -> list[Line]:
 
 @pytest.fixture
 def sample_page(sample_lines: list[Line]) -> Page:
-    """A single page with 3 lines in one TextBlock, 500x800 dimensions."""
-    return Page(blocks=[TextBlock(lines=sample_lines)], width=500, height=800)
+    """A single page with 3 TextBlocks (one per line), 500x800 dimensions."""
+    return Page(
+        blocks=[
+            TextBlock(lines=[line], bounding_box=line.bounding_box)
+            for line in sample_lines
+        ],
+        width=500,
+        height=800,
+    )
 
 
 @pytest.fixture
@@ -309,7 +318,7 @@ def citation_response_simple() -> dict[str, Any]:
     return {
         "name": {
             "value": "Alice",
-            "citations": [{"page": 0, "lines": [0, 1]}],
+            "citations": [{"page": 0, "blocks": [0, 1]}],
         },
     }
 
@@ -321,11 +330,11 @@ def citation_response_nested() -> dict[str, Any]:
         "person": {
             "name": {
                 "value": "Bob",
-                "citations": [{"page": 0, "lines": [2]}],
+                "citations": [{"page": 0, "blocks": [2]}],
             },
             "age": {
                 "value": 30,
-                "citations": [{"page": 1, "lines": [0]}],
+                "citations": [{"page": 1, "blocks": [0]}],
             },
         },
     }
@@ -336,7 +345,7 @@ def citation_response_with_list() -> dict[str, Any]:
     """A response with a list of citation-wrapped items."""
     return {
         "ids": [
-            {"value": 101, "citations": [{"page": 0, "lines": [0]}]},
-            {"value": 205, "citations": [{"page": 0, "lines": [1]}]},
+            {"value": 101, "citations": [{"page": 0, "blocks": [0]}]},
+            {"value": 205, "citations": [{"page": 0, "blocks": [1]}]},
         ],
     }

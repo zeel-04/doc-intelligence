@@ -1,33 +1,82 @@
+"""PDF formatter — converts parsed PDF content into LLM-consumable text.
+
+Emits block-level markup so that LLM citations reference block indices
+rather than flat line numbers.  ``ImageBlock`` and ``ChartBlock`` are
+silently skipped (not yet supported for LLM consumption).
+"""
+
 from loguru import logger
 
 from doc_intelligence.base import BaseFormatter
-from doc_intelligence.pdf.schemas import PDF, blocks_to_lines
-from doc_intelligence.schemas.core import Document
+from doc_intelligence.pdf.schemas import PDF
+from doc_intelligence.schemas.core import (
+    ChartBlock,
+    ContentBlock,
+    Document,
+    ImageBlock,
+    TableBlock,
+    TextBlock,
+)
+
+
+def _render_block_text(block: ContentBlock) -> str:
+    """Render the textual body of a single block.
+
+    Args:
+        block: A ContentBlock instance.
+
+    Returns:
+        The block's text content as a string, or an empty string for
+        block types that are not yet supported (image, chart).
+    """
+    if isinstance(block, TextBlock):
+        return "\n".join(line.text for line in block.lines)
+    if isinstance(block, TableBlock):
+        rows_text: list[str] = []
+        for row in block.rows:
+            rows_text.append("| " + " | ".join(cell.text for cell in row) + " |")
+        return "\n".join(rows_text)
+    # ImageBlock / ChartBlock — skip
+    return ""
 
 
 class DigitalPDFFormatter(BaseFormatter):
-    def _format_with_line_numbers(self, content: PDF) -> list[str]:
-        paginated = []
+    def _format_with_block_indices(self, content: PDF) -> list[str]:
+        """Format pages with block-index tags for citation support."""
+        paginated: list[str] = []
         if not content.pages:
             raise ValueError("PDFFormatter: format_for_llm: Document pages are not set")
         for page_number, page in enumerate(content.pages):
-            lines_text = ""
-            for line_number, line in enumerate(blocks_to_lines(page.blocks)):
-                line_text = f"{line_number}: {line.text}" + "\n"
-                lines_text += line_text
-            paginated.append(f"<page number={page_number}>\n{lines_text}</page>")
+            block_index = 0
+            parts: list[str] = []
+            for block in page.blocks:
+                if isinstance(block, (ImageBlock, ChartBlock)):
+                    continue
+                text = _render_block_text(block)
+                parts.append(
+                    f'<block index="{block_index}" type="{block.block_type}">'
+                    f"\n{text}\n</block>"
+                )
+                block_index += 1
+            paginated.append(
+                f'<page number="{page_number}">\n' + "\n".join(parts) + "\n</page>"
+            )
         return paginated
 
-    def _format_without_line_numbers(self, content: PDF) -> list[str]:
-        paginated = []
+    def _format_without_block_indices(self, content: PDF) -> list[str]:
+        """Format pages as plain text without citation markup."""
+        paginated: list[str] = []
         if not content.pages:
             raise ValueError("PDFFormatter: format_for_llm: Document pages are not set")
         for page_number, page in enumerate(content.pages):
             lines_text = ""
-            for line in blocks_to_lines(page.blocks):
-                line_text = f"{line.text}" + "\n"
-                lines_text += line_text
-            paginated.append(f"<page number={page_number}>\n{lines_text}</page>")
+            for block in page.blocks:
+                if isinstance(block, (ImageBlock, ChartBlock)):
+                    continue
+                text = _render_block_text(block)
+                if text:
+                    lines_text += text + "\n"
+            paginated.append(f'<page number="{page_number}">\n{lines_text}</page>')
         return paginated
 
     def format_document_for_llm(
@@ -57,6 +106,6 @@ class DigitalPDFFormatter(BaseFormatter):
         view = PDF(pages=pages_to_format)
 
         if document.include_citations:
-            return "\n\n".join(self._format_with_line_numbers(view))
+            return "\n\n".join(self._format_with_block_indices(view))
         else:
-            return "\n\n".join(self._format_without_line_numbers(view))
+            return "\n\n".join(self._format_without_block_indices(view))

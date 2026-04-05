@@ -236,14 +236,14 @@ class TestSchemaWithCitation:
         assert schema["ts"]["value"] == "<string>"
         assert schema["d"]["value"] == "<string>"
 
-    def test_citation_level_line(self):
+    def test_citation_level_block(self):
         class M(BaseModel):
             v: str = Field(...)
 
-        schema = pydantic_to_json_instance_schema(M, citation_level="line")
+        schema = pydantic_to_json_instance_schema(M, citation_level="block")
         cit = schema["v"]["citations"][0]
         assert "page" in cit
-        assert "lines" in cit
+        assert "blocks" in cit
 
     def test_citation_level_page(self):
         class M(BaseModel):
@@ -252,7 +252,7 @@ class TestSchemaWithCitation:
         schema = pydantic_to_json_instance_schema(M, citation_level="page")
         cit = schema["v"]["citations"][0]
         assert "page" in cit
-        assert "lines" not in cit
+        assert "blocks" not in cit
 
     def test_bare_model_no_metadata(self):
         class M(BaseModel):
@@ -352,7 +352,7 @@ class TestSchemaWithoutCitation:
             v: str = Field(...)
 
         s1 = pydantic_to_json_instance_schema(M, citation=False, citation_level="page")
-        s2 = pydantic_to_json_instance_schema(M, citation=False, citation_level="line")
+        s2 = pydantic_to_json_instance_schema(M, citation=False, citation_level="block")
         assert s1 == s2
         assert s1["v"] == "<string>"
 

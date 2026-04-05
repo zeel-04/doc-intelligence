@@ -1,6 +1,8 @@
 """PDF parsers for digital and scanned documents.
 
 ``DigitalPDFParser`` uses pdfplumber to extract text from native digital PDFs.
+Each text line becomes its own ``TextBlock`` so that block-level citation
+addressing gives line-level precision for digital documents.
 
 ``ScannedPDFParser`` renders each page to a numpy image, runs a layout
 detector to segment the page into typed regions, then runs OCR on every
@@ -24,14 +26,19 @@ from doc_intelligence.config import settings
 from doc_intelligence.ocr.base import BaseLayoutDetector, BaseOCREngine, LayoutRegion
 from doc_intelligence.pdf.schemas import (
     PDF,
-    Cell,
-    ContentBlock,
-    Page,
     PDFDocument,
+)
+from doc_intelligence.schemas.core import (
+    BoundingBox,
+    Cell,
+    ChartBlock,
+    ContentBlock,
+    ImageBlock,
+    Line,
+    Page,
     TableBlock,
     TextBlock,
 )
-from doc_intelligence.schemas.core import BoundingBox, Line
 from doc_intelligence.utils import normalize_bounding_box
 
 
@@ -63,7 +70,7 @@ class DigitalPDFParser(PDFParser):
 
         with pdfplumber.open(pdf_file) as pdf:
             for page in pdf.pages:
-                lines = []
+                blocks: list[ContentBlock] = []
                 for line in page.extract_text_lines(return_chars=False):
                     bbox = normalize_bounding_box(
                         BoundingBox(
@@ -75,8 +82,12 @@ class DigitalPDFParser(PDFParser):
                         page.width,
                         page.height,
                     )
-                    lines.append(Line(text=line["text"], bounding_box=bbox))
-                blocks = [TextBlock(lines=lines)] if lines else []
+                    blocks.append(
+                        TextBlock(
+                            lines=[Line(text=line["text"], bounding_box=bbox)],
+                            bounding_box=bbox,
+                        )
+                    )
                 pages.append(Page(blocks=blocks, width=page.width, height=page.height))
         return PDFDocument(uri=document.uri, content=PDF(pages=pages))
 
@@ -84,6 +95,12 @@ class DigitalPDFParser(PDFParser):
 # ---------------------------------------------------------------------------
 # ScannedPDFParser
 # ---------------------------------------------------------------------------
+
+# Region types that map to ImageBlock or ChartBlock and are skipped during
+# formatting.  Layout detectors may use varying label vocabularies — expand
+# these sets as needed.
+_IMAGE_REGION_TYPES = frozenset({"image", "figure", "picture", "photo"})
+_CHART_REGION_TYPES = frozenset({"chart", "diagram", "plot", "graph"})
 
 
 class ScannedPDFParser(BaseParser[PDFDocument]):
@@ -169,7 +186,8 @@ class ScannedPDFParser(BaseParser[PDFDocument]):
         """Crop, OCR, and assemble one layout region into a ContentBlock.
 
         Text regions become ``TextBlock``; table regions become ``TableBlock``
-        where each OCR line is stored as a single-cell row.
+        where each OCR line is stored as a single-cell row.  Image and chart
+        regions become ``ImageBlock`` / ``ChartBlock`` with no OCR performed.
 
         Args:
             image: Full page image.
@@ -177,13 +195,21 @@ class ScannedPDFParser(BaseParser[PDFDocument]):
             semaphore: Shared semaphore capping concurrent OCR calls.
 
         Returns:
-            A ``TextBlock`` or ``TableBlock``.
+            A ``TextBlock``, ``TableBlock``, ``ImageBlock``, or ``ChartBlock``.
         """
+        rtype = region.region_type.lower()
+
+        # Image and chart regions — no OCR, just store the bbox
+        if rtype in _IMAGE_REGION_TYPES:
+            return ImageBlock(bounding_box=region.bounding_box)
+        if rtype in _CHART_REGION_TYPES:
+            return ChartBlock(bounding_box=region.bounding_box)
+
         async with semaphore:
             cropped = _crop(image, region.bounding_box)
             lines = await asyncio.to_thread(self._ocr_engine.ocr, cropped)
 
-        if region.region_type == "table":
+        if rtype == "table":
             rows = [
                 [Cell(text=line.text, bounding_box=line.bounding_box)] for line in lines
             ]

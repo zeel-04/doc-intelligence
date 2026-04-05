@@ -137,17 +137,17 @@ def is_list_type(field_type: Any) -> bool:
     return origin is list
 
 
-def _citation_item_schema(citation_level: Literal["page", "line"]) -> dict:
+def _citation_item_schema(citation_level: Literal["page", "block"]) -> dict:
     """Build a single citation item schema based on citation_level."""
     item: dict[str, Any] = {"page": "<integer>"}
-    if citation_level == "line":
-        item["lines"] = ["<integer>"]
+    if citation_level == "block":
+        item["blocks"] = ["<integer>"]
     return item
 
 
 def pydantic_to_json_instance_schema(
     model: type[BaseModel],
-    citation_level: Literal["page", "line"] = "line",
+    citation_level: Literal["page", "block"] = "block",
     citation: bool = True,
 ) -> dict:
     """
@@ -163,8 +163,8 @@ def pydantic_to_json_instance_schema(
 
     Args:
         model: Pydantic BaseModel class to transform
-        citation_level: If "page", citations include only page; if "line", citations
-            include both page and lines. Default "line". Ignored when
+        citation_level: If "page", citations include only page; if "block", citations
+            include both page and block indices. Default "block". Ignored when
             ``citation=False``.
         citation: If True (default), wrap leaf fields with value/citations.
             If False, return plain type placeholders without citations.
@@ -175,13 +175,13 @@ def pydantic_to_json_instance_schema(
     Example:
         >>> class Address(BaseModel):
         ...     street: str = Field(..., description="street name")
-        >>> schema = pydantic_to_json_instance_schema(Address, citation_level="line")
+        >>> schema = pydantic_to_json_instance_schema(Address, citation_level="block")
         >>> schema
         {
             "street": {
                 "value": "<string>",
                 "comment": "desc: street name",
-                "citations": [{"page": "<integer>", "lines": ["<integer>"]}]
+                "citations": [{"page": "<integer>", "blocks": ["<integer>"]}]
             }
         }
         >>> schema_no_cite = pydantic_to_json_instance_schema(Address, citation=False)
@@ -389,7 +389,7 @@ if __name__ == "__main__":
     # Transform and print (with citations)
     print("Example: User Model (citation=True)")
     print("=" * 80)
-    schema = pydantic_to_json_instance_schema(User, citation_level="line")
+    schema = pydantic_to_json_instance_schema(User, citation_level="block")
     print(stringify_schema(schema))
     print("\n" + "=" * 80)
     print("As JSON:")

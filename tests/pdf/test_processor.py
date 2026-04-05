@@ -1,8 +1,7 @@
 """Tests for processor module."""
 
-import sys
 from typing import Any
-from unittest.mock import MagicMock, patch
+from unittest.mock import patch
 
 import numpy as np
 import pytest
@@ -549,43 +548,21 @@ class TestFromScannedPDF:
         )
         assert proc.parser._dpi == 150  # type: ignore[attr-defined]
 
-    def test_default_paddle_detector_instantiated(self, fake_llm: FakeLLM) -> None:
-        """When no detector is supplied, PaddleLayoutDetector() is used (deferred)."""
-        with patch.dict(
-            sys.modules,
-            {
-                "paddleocr": MagicMock(
-                    PPStructure=MagicMock(return_value=MagicMock()),
-                    PaddleOCR=MagicMock(return_value=MagicMock()),
-                )
-            },
-        ):
-            from doc_intelligence.ocr.paddle import PaddleLayoutDetector
-
-            proc = DocumentProcessor.from_scanned_pdf(
+    def test_missing_layout_detector_raises(self, fake_llm: FakeLLM) -> None:
+        """from_scanned_pdf() raises ValueError when layout_detector is None."""
+        with pytest.raises(ValueError, match="layout_detector is required"):
+            DocumentProcessor.from_scanned_pdf(
                 llm=fake_llm,
                 ocr_engine=FakeOCREngine(),
             )
-        assert isinstance(proc.parser._layout_detector, PaddleLayoutDetector)  # type: ignore[attr-defined]
 
-    def test_default_paddle_engine_instantiated(self, fake_llm: FakeLLM) -> None:
-        """When no engine is supplied, PaddleOCREngine() is used (deferred)."""
-        with patch.dict(
-            sys.modules,
-            {
-                "paddleocr": MagicMock(
-                    PPStructure=MagicMock(return_value=MagicMock()),
-                    PaddleOCR=MagicMock(return_value=MagicMock()),
-                )
-            },
-        ):
-            from doc_intelligence.ocr.paddle import PaddleOCREngine
-
-            proc = DocumentProcessor.from_scanned_pdf(
+    def test_missing_ocr_engine_raises(self, fake_llm: FakeLLM) -> None:
+        """from_scanned_pdf() raises ValueError when ocr_engine is None."""
+        with pytest.raises(ValueError, match="ocr_engine is required"):
+            DocumentProcessor.from_scanned_pdf(
                 llm=fake_llm,
                 layout_detector=FakeLayoutDetector(),
             )
-        assert isinstance(proc.parser._ocr_engine, PaddleOCREngine)  # type: ignore[attr-defined]
 
 
 # ---------------------------------------------------------------------------
@@ -631,8 +608,8 @@ class TestScannedPipelineEndToEnd:
     def test_extract_page_has_text_block(self, fake_llm: FakeLLM) -> None:
         """Parsed PDFDocument must contain a TextBlock from OCR output."""
         from doc_intelligence.base import BaseExtractor, BaseFormatter
-        from doc_intelligence.pdf.schemas import TextBlock
         from doc_intelligence.schemas.core import Document as BaseDoc
+        from doc_intelligence.schemas.core import TextBlock
 
         captured: list[PDFDocument] = []
 
@@ -710,27 +687,31 @@ class TestPDFProcessorDocumentType:
         assert isinstance(proc._processor.parser, DigitalPDFParser)
 
     def test_scanned_type_uses_scanned_parser(self, fake_llm: FakeLLM) -> None:
-        with patch.dict(
-            sys.modules,
-            {
-                "paddleocr": MagicMock(
-                    PPStructure=MagicMock(return_value=MagicMock()),
-                    PaddleOCR=MagicMock(return_value=MagicMock()),
-                )
-            },
-        ):
-            proc = PDFProcessor(llm=fake_llm, document_type="scanned")
+        proc = PDFProcessor(
+            llm=fake_llm,
+            document_type="scanned",
+            layout_detector=FakeLayoutDetector(),
+            ocr_engine=FakeOCREngine(),
+        )
         assert isinstance(proc._processor.parser, ScannedPDFParser)
 
     def test_scanned_type_uses_digital_formatter(self, fake_llm: FakeLLM) -> None:
-        with patch.dict(
-            sys.modules,
-            {
-                "paddleocr": MagicMock(
-                    PPStructure=MagicMock(return_value=MagicMock()),
-                    PaddleOCR=MagicMock(return_value=MagicMock()),
-                )
-            },
-        ):
-            proc = PDFProcessor(llm=fake_llm, document_type="scanned")
+        proc = PDFProcessor(
+            llm=fake_llm,
+            document_type="scanned",
+            layout_detector=FakeLayoutDetector(),
+            ocr_engine=FakeOCREngine(),
+        )
         assert isinstance(proc._processor.formatter, DigitalPDFFormatter)
+
+    def test_scanned_type_missing_detector_raises(self, fake_llm: FakeLLM) -> None:
+        with pytest.raises(ValueError, match="layout_detector is required"):
+            PDFProcessor(llm=fake_llm, document_type="scanned")
+
+    def test_scanned_type_missing_engine_raises(self, fake_llm: FakeLLM) -> None:
+        with pytest.raises(ValueError, match="ocr_engine is required"):
+            PDFProcessor(
+                llm=fake_llm,
+                document_type="scanned",
+                layout_detector=FakeLayoutDetector(),
+            )

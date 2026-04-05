@@ -1,8 +1,8 @@
 # Custom OCR Components
 
-The scanned PDF pipeline is fully pluggable. You can replace the default
-`PaddleLayoutDetector` and `PaddleOCREngine` with any implementation that
-satisfies the abstract base class contracts.
+The scanned PDF pipeline is fully pluggable. Implement the
+`BaseLayoutDetector` and `BaseOCREngine` abstract base class contracts
+to provide your own layout detection and OCR capabilities.
 
 ## Contracts
 

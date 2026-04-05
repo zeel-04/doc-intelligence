@@ -1,35 +1,36 @@
+"""PDF-specific utilities for citation enrichment."""
+
 from typing import Any
 
-from doc_intelligence.pdf.schemas import PDF, blocks_to_lines
-from doc_intelligence.schemas.core import Document
+from doc_intelligence.pdf.schemas import PDF
+from doc_intelligence.schemas.core import ChartBlock, Document, ImageBlock
 
 
 def enrich_citations_with_bboxes(
     response: dict[str, Any], document: Document
 ) -> dict[str, Any]:
-    """
-    Enriches citation fields in the response dict with bounding boxes from the document.
+    """Enrich citation fields in the response dict with bounding boxes.
 
-    This function traverses the response dictionary recursively to find all citation
-    dictionaries (identified by having both 'page' and 'lines' keys), then replaces
-    'lines' with 'bboxes' looked up from the corresponding lines in the parsed document.
+    Traverses the response dictionary recursively to find all citation
+    dictionaries (identified by having both ``page`` and ``blocks`` keys),
+    then replaces ``blocks`` with ``bboxes`` looked up from the
+    corresponding content blocks in the parsed document.
+
+    Block indices refer to the *citable* block ordering — i.e. the order
+    that ``ImageBlock`` and ``ChartBlock`` are excluded from (matching the
+    formatter's numbering).
 
     Args:
-        response: The response dictionary (e.g. from LLM structured output)
-        document: The Document instance (e.g. PDFDocument) with parsed content
+        response: The response dictionary (e.g. from LLM structured output).
+        document: The Document instance (e.g. PDFDocument) with parsed content.
 
     Returns:
-        A dictionary with bboxes added to all citation fields and 'lines' removed.
-        Each citation will have 'page' and 'bboxes' (a list of normalized BoundingBox dicts).
+        A dictionary with bboxes added to all citation fields and ``blocks``
+        removed.  Each citation will have ``page`` and ``bboxes`` (a list of
+        normalized BoundingBox dicts).
 
     Raises:
-        ValueError: If document.content is None (document not parsed yet)
-
-    Note:
-        - The 'lines' key is removed from citations in the output since bboxes
-          replace them for downstream use
-        - Bounding boxes are normalized (0-1 scale)
-        - Handles out-of-bounds page/line indices gracefully by skipping them
+        ValueError: If document.content is None (document not parsed yet).
     """
     if document.content is None:
         raise ValueError(
@@ -38,39 +39,41 @@ def enrich_citations_with_bboxes(
 
     parsed_pdf: PDF = document.content  # type: ignore[assignment]
 
+    def _citable_blocks(page_idx: int) -> list:
+        """Return the citable blocks for a page, excluding image/chart."""
+        if page_idx < 0 or page_idx >= len(parsed_pdf.pages):
+            return []
+        return [
+            b
+            for b in parsed_pdf.pages[page_idx].blocks
+            if not isinstance(b, (ImageBlock, ChartBlock))
+        ]
+
     def _is_citation_dict(obj: Any) -> bool:
         """Check if an object is a citation dictionary."""
         return (
             isinstance(obj, dict)
             and "page" in obj
-            and "lines" in obj
+            and "blocks" in obj
             and isinstance(obj.get("page"), int)
-            and isinstance(obj.get("lines"), list)
+            and isinstance(obj.get("blocks"), list)
         )
 
     def _enrich_citation(citation: dict[str, Any]) -> dict[str, Any]:
         """Add bboxes to a single citation dictionary."""
         page_idx = citation["page"]
-        line_indices = citation["lines"]
+        block_indices = citation["blocks"]
 
-        # Bounds check for page
-        if page_idx < 0 or page_idx >= len(parsed_pdf.pages):
-            # Page index out of bounds, return citation as-is
-            return citation
-
-        page = parsed_pdf.pages[page_idx]
-        flat_lines = blocks_to_lines(page.blocks)
+        citable = _citable_blocks(page_idx)
         bboxes = []
 
-        for line_idx in line_indices:
-            # Bounds check for line
-            if line_idx >= 0 and line_idx < len(flat_lines):
-                bbox = flat_lines[line_idx].bounding_box
-                # Convert BoundingBox to dict
-                bboxes.append(bbox.model_dump())
+        for block_idx in block_indices:
+            if 0 <= block_idx < len(citable):
+                block = citable[block_idx]
+                if block.bounding_box is not None:
+                    bboxes.append(block.bounding_box.model_dump())
 
-        # Create enriched citation: add bboxes, remove lines
-        enriched = {k: v for k, v in citation.items() if k != "lines"}
+        enriched = {k: v for k, v in citation.items() if k != "blocks"}
         enriched["bboxes"] = bboxes
         return enriched
 

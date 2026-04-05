@@ -13,11 +13,11 @@ doc_intelligence/
 │   ├── extractor.py        # DigitalPDFExtractor — single-pass & multi-pass extraction with citation enrichment
 │   ├── formatter.py        # DigitalPDFFormatter — format PDF content for LLM consumption with line numbers
 │   ├── processor.py        # DocumentProcessor (reusable pipeline), PDFProcessor (convenience wrapper with LLM factory)
-│   ├── schemas.py          # Line, Page, PDF, PDFDocument, PDFExtractionConfig — PDF structure models
+│   ├── schemas.py          # PDF, PDFDocument, PDFExtractionConfig — PDF-specific document models (block types and Page live in schemas/core.py)
 │   ├── types.py            # PDFExtractionMode enum (SINGLE_PASS, MULTI_PASS)
 │   └── utils.py            # enrich_citations_with_bboxes() — add bounding boxes to citation metadata
 ├── schemas/
-│   └── core.py             # BoundingBox, BaseCitation, Document, ExtractionResult, ExtractionConfig, PydanticModel TypeVar
+│   └── core.py             # BoundingBox, Line, Cell, TextBlock, TableBlock, ImageBlock, ChartBlock, ContentBlock, Page, BaseCitation, Document, ExtractionResult, ExtractionConfig, PydanticModel TypeVar
 ├── base.py                 # Abstract bases: BaseParser, BaseFormatter, BaseLLM, BaseExtractor
 ├── llm.py                  # OpenAILLM, OllamaLLM, AnthropicLLM, GeminiLLM + create_llm() factory
 ├── extract.py              # extract() — top-level one-liner convenience function wrapping PDFProcessor
@@ -133,6 +133,10 @@ uv run pyrefly check .        # type checking
 ### Configuration
 
 `DocIntelligenceConfig` in `config.py` uses `pydantic-settings`. All settings are overridable via `DOC_INTEL_*` env vars or `.env` file. The module-level `settings` singleton is the single source of truth — import and use it, don't instantiate your own.
+
+### Citation Architecture
+
+Citations are block-level: `{"page": <int>, "blocks": [<int>]}`. `ContentBlock` (discriminated union in `schemas/core.py`) is the universal citable unit. For digital PDFs, each text line becomes its own `TextBlock`, so block-level addressing gives line-level precision. `ImageBlock` and `ChartBlock` are excluded from formatter output and block index numbering — they are placeholders for future VLM support.
 
 ### General Rules
 

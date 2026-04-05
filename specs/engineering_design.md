@@ -1,8 +1,8 @@
 # Engineering Design Document — doc_intelligence
 
-**Version:** 0.1.9
+**Version:** 0.3.0
 **Status:** Living document
-**Last updated:** 2026-03-29
+**Last updated:** 2026-04-04
 
 ---
 
@@ -15,15 +15,18 @@ Everything described in this section is already implemented and tested.
 ```
 doc_intelligence/
 ├── pdf/
-│   ├── parser.py       # PDFParser (ABC), DigitalPDFParser
-│   ├── formatter.py    # DigitalPDFFormatter
-│   ├── extractor.py    # DigitalPDFExtractor
+│   ├── parser.py       # PDFParser (ABC), DigitalPDFParser, ScannedPDFParser
+│   ├── formatter.py    # DigitalPDFFormatter (block-aware markup)
+│   ├── extractor.py    # DigitalPDFExtractor (block-level citations)
 │   ├── processor.py    # DocumentProcessor, PDFProcessor
-│   ├── schemas.py      # PDF, Line, Page, PDFDocument, PDFExtractionConfig
+│   ├── schemas.py      # PDF, PDFDocument, PDFExtractionConfig
 │   ├── types.py        # PDFExtractionMode (SINGLE_PASS, MULTI_PASS)
-│   └── utils.py        # enrich_citations_with_bboxes
+│   └── utils.py        # enrich_citations_with_bboxes (block-level)
 ├── schemas/
-│   └── core.py         # Document, BoundingBox, BaseCitation, ExtractionConfig, ExtractionResult, PydanticModel TypeVar
+│   └── core.py         # Document, BoundingBox, Line, Cell, ContentBlock (TextBlock, TableBlock, ImageBlock, ChartBlock), Page, BaseCitation, ExtractionConfig, ExtractionResult
+├── ocr/
+│   ├── __init__.py
+│   └── base.py         # BaseLayoutDetector, BaseOCREngine, LayoutRegion
 ├── base.py             # BaseParser, BaseFormatter, BaseLLM, BaseExtractor
 ├── llm.py              # OpenAILLM, OllamaLLM, AnthropicLLM, GeminiLLM, create_llm()
 ├── extract.py          # Top-level extract() convenience function
@@ -39,17 +42,18 @@ PDF file / URL
     │
     ▼
 DigitalPDFParser.parse()
-    → PDFDocument(content=PDF(pages=[Page(lines=[Line(text, bbox)])]))
+    → PDFDocument(content=PDF(pages=[Page(blocks=[TextBlock(lines=[Line], bbox)])]))
+    │  (one TextBlock per text line — block-level addressing gives line precision)
     │
     ▼
 DigitalPDFFormatter.format_document_for_llm()
-    → str: <page number=0>\n0: line text\n1: line text\n…\n</page>
+    → str: <page number="0"><block index="0" type="text">text</block>…</page>
+    │  (ImageBlock / ChartBlock are skipped)
     │
     ▼
 DigitalPDFExtractor.extract()
-    → calls llm.generate_text(system_prompt, user_prompt)
-    → json_parser.parse(response)            # langchain JsonOutputParser
-    → enrich_citations_with_bboxes(…)        # resolve line → bbox
+    → citations use {"page": <int>, "blocks": [<int>]}
+    → enrich_citations_with_bboxes(…)        # resolve block index → bbox
     → strip_citations(…)                     # unwrap {value, citations} → plain value
     │
     ▼
@@ -66,6 +70,7 @@ ExtractionResult(data=<PydanticModel instance>, metadata=<citation dict>)
 - `config.py` uses `pydantic-settings` (`DocIntelligenceConfig`) with `DOC_INTEL_` env prefix (Phase 1).
 - `BaseParser` is generic: `BaseParser(ABC, Generic[TDocument])` where `TDocument = TypeVar("TDocument", bound=Document)`. `PDFParser` narrows to `BaseParser[PDFDocument]`.
 - `DocumentProcessor` is stateless w.r.t. documents — a fresh `PDFDocument` is created per `extract()` call (Client API Redesign).
+- **Block-level citations (v0.3):** `ContentBlock` is the universal citable unit. Block types (`TextBlock`, `TableBlock`, `ImageBlock`, `ChartBlock`) and `Page` live in `schemas/core.py` (document-type agnostic). For digital PDFs, each text line becomes its own `TextBlock` so block-level addressing gives line-level precision. For scanned PDFs, each layout region is a block. Citations use `{"page": <int>, "blocks": [<int>]}` format. `ImageBlock` and `ChartBlock` are skipped by the formatter and excluded from block index numbering.
 
 ---
 
@@ -397,8 +402,8 @@ The existing digital components keep their names. New OCR components are named t
 | Component         | Digital (existing)                     | Scanned (new)                                       |
 | ----------------- | -------------------------------------- | --------------------------------------------------- |
 | Parser            | `DigitalPDFParser`                     | `ScannedPDFParser`                                  |
-| Layout detector   | —                                      | `BaseLayoutDetector` (ABC) + `PaddleLayoutDetector` |
-| OCR engine        | —                                      | `BaseOCREngine` (ABC) + `PaddleOCREngine`           |
+| Layout detector   | —                                      | `BaseLayoutDetector` (ABC) — user supplies implementation |
+| OCR engine        | —                                      | `BaseOCREngine` (ABC) — user supplies implementation      |
 | Formatter         | `DigitalPDFFormatter`                  | *reused as-is*                                      |
 | Extractor         | `DigitalPDFExtractor`                  | *reused as-is*                                      |
 | Processor factory | `DocumentProcessor.from_digital_pdf()` | `DocumentProcessor.from_scanned_pdf()`              |
@@ -454,35 +459,7 @@ The `page_images` generation step (PDF → images) uses `pypdfium2` (already a p
 
 ---
 
-### 3.5 PaddleOCR implementations
-
-```python
-# doc_intelligence/ocr/paddle.py
-
-class PaddleLayoutDetector(BaseLayoutDetector):
-    def __init__(self, model: str = "picodet_lcnet_x1_0_fgd_layout"):
-        from paddleocr import PPStructure
-        self._model = PPStructure(layout=True, ocr=False, table=False)
-
-    def detect(self, page_image: np.ndarray) -> list[BoundingBox]:
-        result = self._model(page_image)
-        return [_to_bounding_box(r["bbox"]) for r in result]
-
-class PaddleOCREngine(BaseOCREngine):
-    def __init__(self, lang: str = "en"):
-        from paddleocr import PaddleOCR
-        self._ocr = PaddleOCR(use_angle_cls=True, lang=lang, show_log=False)
-
-    def ocr(self, region_image: np.ndarray) -> list[Line]:
-        result = self._ocr.ocr(region_image, cls=True)
-        return [_to_line(r) for r in (result[0] or [])]
-```
-
-The `paddleocr` import is deferred (inside `__init__`) so the library is importable without PaddleOCR installed unless a `ScannedPDFParser` is actually instantiated.
-
----
-
-### 3.6 ScannedPDFParser
+### 3.5 ScannedPDFParser
 
 ```python
 # doc_intelligence/pdf/parser.py  (alongside DigitalPDFParser)
@@ -519,11 +496,11 @@ class ScannedPDFParser(BaseParser):
         return [line for region_lines in results for line in region_lines]
 ```
 
-`asyncio.to_thread` wraps the synchronous PaddleOCR call to avoid blocking the event loop.
+`asyncio.to_thread` wraps the synchronous OCR call to avoid blocking the event loop.
 
 ---
 
-### 3.7 Factory method addition
+### 3.6 Factory method addition
 
 ```python
 # doc_intelligence/pdf/processor.py
@@ -536,11 +513,14 @@ def from_scanned_pdf(
     ocr_engine: BaseOCREngine | None = None,
     **kwargs,
 ) -> "DocumentProcessor":
-    from ..ocr.paddle import PaddleLayoutDetector, PaddleOCREngine
+    if layout_detector is None:
+        raise ValueError("layout_detector is required")
+    if ocr_engine is None:
+        raise ValueError("ocr_engine is required")
     return cls(
         parser=ScannedPDFParser(
-            layout_detector=layout_detector or PaddleLayoutDetector(),
-            ocr_engine=ocr_engine or PaddleOCREngine(),
+            layout_detector=layout_detector,
+            ocr_engine=ocr_engine,
         ),
         formatter=DigitalPDFFormatter(),
         extractor=DigitalPDFExtractor(llm),
@@ -552,18 +532,16 @@ The URI is supplied per-call via `processor.extract(uri=…)`, consistent with `
 
 ---
 
-### 3.8 Files changed / created
+### 3.7 Files changed / created
 
 
 | File                                 | Change                                          |
 | ------------------------------------ | ----------------------------------------------- |
 | `doc_intelligence/ocr/__init__.py`   | New package                                     |
 | `doc_intelligence/ocr/base.py`       | New — `BaseLayoutDetector`, `BaseOCREngine`     |
-| `doc_intelligence/ocr/paddle.py`     | New — `PaddleLayoutDetector`, `PaddleOCREngine` |
 | `doc_intelligence/pdf/parser.py`     | Add `ScannedPDFParser` (merged from ocr_parser) |
 | `doc_intelligence/pdf/processor.py`  | Add `from_scanned_pdf()` factory                |
 | `tests/ocr/test_base.py`             | New                                             |
-| `tests/ocr/test_paddle.py`           | New (mocked PaddleOCR)                          |
 | `tests/pdf/test_ocr_parser.py`       | New                                             |
 
 
@@ -736,10 +714,9 @@ New optional dependencies are declared as extras in `pyproject.toml`, not requir
 ollama     = ["ollama>=0.4.0"]              # native Ollama SDK
 anthropic  = ["anthropic>=0.40.0"]
 gemini     = ["google-genai>=1.57.0"]       # already in main deps
-ocr        = ["paddleocr>=2.9.0", "paddlepaddle>=3.0.0"]
 ```
 
-This keeps the base install small. A user who only needs OpenAI + digital PDFs does not install PaddleOCR.
+This keeps the base install small. Users supply their own OCR implementations for scanned PDF support.
 
 ### Error taxonomy
 
@@ -750,7 +727,7 @@ This keeps the base install small. A user who only needs OpenAI + digital PDFs d
 | Too many pages                    | `ValueError: PDF has … pages, limit is …`      |
 | Schema too deep                   | `ValueError: Schema depth … exceeds limit …`   |
 | LLM parse failure (after retries) | `ExtractionError` (custom, Phase 1+ — not yet implemented; currently propagates from JSON parser) |
-| OCR engine failure                | `OCRError` (custom, Phase 3+ — not yet implemented; currently propagates from PaddleOCR)          |
+| OCR engine failure                | `OCRError` (custom, Phase 3+ — not yet implemented; currently propagates from user's OCR engine)  |
 
 
 ### Testing conventions (unchanged from baseline)

@@ -13,3 +13,5 @@ wheels/
 data/
 .ruff_cache
 .pytest_cache
+.mcp.json
+.todo

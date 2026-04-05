@@ -77,10 +77,10 @@ def strip_citations(response: dict[str, Any]) -> dict[str, Any]:
     Example::
 
         >>> strip_citations({
-        ...     'name': {'value': 'Zeel', 'citations': [{'page': 1, 'lines': [1]}]},
+        ...     'name': {'value': 'Zeel', 'citations': [{'page': 1, 'blocks': [0]}]},
         ...     'ids': [
-        ...         {'value': 101, 'citations': [{'page': 1, 'lines': [1]}]},
-        ...         {'value': 205, 'citations': [{'page': 1, 'lines': [1]}]},
+        ...         {'value': 101, 'citations': [{'page': 1, 'blocks': [0]}]},
+        ...         {'value': 205, 'citations': [{'page': 1, 'blocks': [1]}]},
         ...     ],
         ... })
         {'name': 'Zeel', 'ids': [101, 205]}

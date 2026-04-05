@@ -32,7 +32,7 @@ Respond as JSON mapping each field path to a list of 0-indexed page numbers:
 """
 
 _PASS3_USER_PROMPT = """\
-Your job is to locate the exact line numbers for each field in the pages below.
+Your job is to locate the exact block indices for each field in the pages below.
 Use the citation-aware schema to mark where each value appears.
 
 PREVIOUSLY EXTRACTED ANSWER:
@@ -103,7 +103,7 @@ Generate output in JSON format.
             pydantic_to_json_instance_schema(
                 response_format,
                 citation=document.include_citations,
-                citation_level="line",
+                citation_level="block",
             )
         )
         logger.debug(
@@ -253,7 +253,7 @@ Generate output in JSON format.
 
         json_instance_schema = stringify_schema(
             pydantic_to_json_instance_schema(
-                response_format, citation=True, citation_level="line"
+                response_format, citation=True, citation_level="block"
             )
         )
         content_text = formatter.format_document_for_llm(

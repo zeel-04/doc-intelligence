@@ -68,13 +68,11 @@
 
 ## Phase 3 — Scanned PDF Support (OCR Pipeline)
 
-- [ ] `BaseLayoutDetector` and `BaseOCREngine` abstract bases
-- [ ] `PaddleLayoutDetector` — PPStructure layout detection
-- [ ] `PaddleOCREngine` — PaddleOCR text recognition
-- [ ] `ScannedPDFParser` — image → layout → OCR → `PDFDocument`
-- [ ] Async OCR regions within page via `asyncio.gather`
-- [ ] `DocumentProcessor.from_scanned_pdf()` factory method
-- [ ] Tests for OCR base classes, Paddle implementations, scanned parser
+- [x] `BaseLayoutDetector` and `BaseOCREngine` abstract bases
+- [x] `ScannedPDFParser` — image → layout → OCR → `PDFDocument`
+- [x] Async OCR regions within page via `asyncio.gather`
+- [x] `DocumentProcessor.from_scanned_pdf()` factory method (requires user-supplied detector/engine)
+- [x] Tests for OCR base classes and scanned parser
 
 ## Phase 4 — Batch and Async Processing
 

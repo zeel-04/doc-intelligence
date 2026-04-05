@@ -16,12 +16,16 @@ from doc_intelligence.pdf.parser import (
 )
 from doc_intelligence.pdf.schemas import (
     PDF,
-    Page,
     PDFDocument,
+)
+from doc_intelligence.schemas.core import (
+    BoundingBox,
+    ImageBlock,
+    Line,
+    Page,
     TableBlock,
     TextBlock,
 )
-from doc_intelligence.schemas.core import BoundingBox, Line
 
 
 # ---------------------------------------------------------------------------
@@ -273,6 +277,48 @@ class TestScannedPDFParserBlocks:
         assert isinstance(blocks[0], TextBlock)
         assert isinstance(blocks[1], TableBlock)
         assert isinstance(blocks[2], TextBlock)
+
+    def test_image_region_becomes_image_block(self) -> None:
+        regions = [_make_region(region_type="image")]
+        parser, _, ocr_engine = _make_parser(regions=regions, lines=[_make_line()])
+
+        result = _patched_parse(parser)
+        assert result.content is not None
+        block = result.content.pages[0].blocks[0]
+        assert isinstance(block, ImageBlock)
+        # OCR should NOT be called for image regions
+        assert ocr_engine.call_count == 0
+
+    def test_figure_region_becomes_image_block(self) -> None:
+        regions = [_make_region(region_type="figure")]
+        parser, _, ocr_engine = _make_parser(regions=regions, lines=[_make_line()])
+
+        result = _patched_parse(parser)
+        assert result.content is not None
+        assert isinstance(result.content.pages[0].blocks[0], ImageBlock)
+        assert ocr_engine.call_count == 0
+
+    def test_chart_region_becomes_chart_block(self) -> None:
+        from doc_intelligence.schemas.core import ChartBlock
+
+        regions = [_make_region(region_type="chart")]
+        parser, _, ocr_engine = _make_parser(regions=regions, lines=[_make_line()])
+
+        result = _patched_parse(parser)
+        assert result.content is not None
+        assert isinstance(result.content.pages[0].blocks[0], ChartBlock)
+        assert ocr_engine.call_count == 0
+
+    def test_image_block_bbox_from_region(self) -> None:
+        bbox = _make_bbox(x0=5.0, top=10.0, x1=120.0, bottom=90.0)
+        regions = [LayoutRegion(bounding_box=bbox, region_type="image", confidence=0.8)]
+        parser, _, _ = _make_parser(regions=regions, lines=[])
+
+        result = _patched_parse(parser)
+        assert result.content is not None
+        block = result.content.pages[0].blocks[0]
+        assert isinstance(block, ImageBlock)
+        assert block.bounding_box == bbox
 
     def test_ocr_receives_cropped_image(self) -> None:
         """OCR engine must receive a crop, not the full page image."""

@@ -30,7 +30,6 @@ dependencies = [
 ollama    = ["ollama>=0.4.0"]
 anthropic = ["anthropic>=0.40.0"]
 gemini    = ["google-genai>=1.57.0"]
-ocr       = ["paddleocr>=2.9.0", "paddlepaddle>=3.0.0"]
 
 [dependency-groups]
 dev = [

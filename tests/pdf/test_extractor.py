@@ -9,9 +9,15 @@ from pydantic import BaseModel, Field
 
 from doc_intelligence.pdf.extractor import DigitalPDFExtractor
 from doc_intelligence.pdf.formatter import DigitalPDFFormatter
-from doc_intelligence.pdf.schemas import PDF, Line, Page, PDFDocument, TextBlock
+from doc_intelligence.pdf.schemas import PDF, PDFDocument
 from doc_intelligence.pdf.types import PDFExtractionMode
-from doc_intelligence.schemas.core import BoundingBox, ExtractionResult
+from doc_intelligence.schemas.core import (
+    BoundingBox,
+    ExtractionResult,
+    Line,
+    Page,
+    TextBlock,
+)
 from tests.conftest import FakeFormatter, FakeLLM
 
 
@@ -129,11 +135,11 @@ class TestExtractSinglePassWithCitations:
             {
                 "name": {
                     "value": "Alice",
-                    "citations": [{"page": 0, "lines": [0]}],
+                    "citations": [{"page": 0, "blocks": [0]}],
                 },
                 "age": {
                     "value": 30,
-                    "citations": [{"page": 0, "lines": [1]}],
+                    "citations": [{"page": 0, "blocks": [1]}],
                 },
             }
         )
@@ -159,16 +165,16 @@ class TestExtractSinglePassWithCitations:
         assert result.metadata is not None
         assert "bboxes" in str(result.metadata)
 
-    def test_metadata_has_bboxes_not_lines(self, sample_pdf: PDF):
+    def test_metadata_has_bboxes_not_blocks(self, sample_pdf: PDF):
         citation_response = json.dumps(
             {
                 "name": {
                     "value": "Bob",
-                    "citations": [{"page": 0, "lines": [0]}],
+                    "citations": [{"page": 0, "blocks": [0]}],
                 },
                 "age": {
                     "value": 25,
-                    "citations": [{"page": 0, "lines": [1]}],
+                    "citations": [{"page": 0, "blocks": [1]}],
                 },
             }
         )
@@ -189,14 +195,14 @@ class TestExtractSinglePassWithCitations:
         metadata = result.metadata
         name_cit = metadata["name"]["citations"][0]
         assert "bboxes" in name_cit
-        assert "lines" not in name_cit
+        assert "blocks" not in name_cit
 
 
 # ---------------------------------------------------------------------------
 # extract — multi-pass
 # ---------------------------------------------------------------------------
 class TestExtractMultiPass:
-    """Three-pass extraction: raw → page grounding → line grounding."""
+    """Three-pass extraction: raw → page grounding → block grounding."""
 
     def _make_doc(self, sample_pdf: PDF, citations: bool = True) -> PDFDocument:
         return PDFDocument(
@@ -247,8 +253,8 @@ class TestExtractMultiPass:
         pass2_json = json.dumps({"name": [0], "age": [0]})
         pass3_json = json.dumps(
             {
-                "name": {"value": "Alice", "citations": [{"page": 0, "lines": [0]}]},
-                "age": {"value": 30, "citations": [{"page": 0, "lines": [1]}]},
+                "name": {"value": "Alice", "citations": [{"page": 0, "blocks": [0]}]},
+                "age": {"value": 30, "citations": [{"page": 0, "blocks": [1]}]},
             }
         )
         llm = FakeLLM(responses=[pass1_json, pass2_json, pass3_json])
@@ -271,8 +277,8 @@ class TestExtractMultiPass:
         pass2_json = json.dumps({"name": [0], "age": [0]})
         pass3_json = json.dumps(
             {
-                "name": {"value": "Alice", "citations": [{"page": 0, "lines": [0]}]},
-                "age": {"value": 30, "citations": [{"page": 0, "lines": [1]}]},
+                "name": {"value": "Alice", "citations": [{"page": 0, "blocks": [0]}]},
+                "age": {"value": 30, "citations": [{"page": 0, "blocks": [1]}]},
             }
         )
         llm = FakeLLM(responses=[pass1_json, pass2_json, pass3_json])
@@ -297,8 +303,8 @@ class TestExtractMultiPass:
         pass2_json = json.dumps({"name": [0], "age": [0]})
         pass3_json = json.dumps(
             {
-                "name": {"value": "Alice", "citations": [{"page": 0, "lines": [0]}]},
-                "age": {"value": 30, "citations": [{"page": 0, "lines": [1]}]},
+                "name": {"value": "Alice", "citations": [{"page": 0, "blocks": [0]}]},
+                "age": {"value": 30, "citations": [{"page": 0, "blocks": [1]}]},
             }
         )
         llm = FakeLLM(responses=[pass1_json, pass2_json, pass3_json])
@@ -320,8 +326,8 @@ class TestExtractMultiPass:
         pass2_json = json.dumps({"name": [0], "age": [1]})
         pass3_json = json.dumps(
             {
-                "name": {"value": "Alice", "citations": [{"page": 0, "lines": [0]}]},
-                "age": {"value": 30, "citations": [{"page": 1, "lines": [0]}]},
+                "name": {"value": "Alice", "citations": [{"page": 0, "blocks": [0]}]},
+                "age": {"value": 30, "citations": [{"page": 1, "blocks": [0]}]},
             }
         )
         llm = FakeLLM(responses=[pass1_json, pass2_json, pass3_json])
@@ -343,8 +349,8 @@ class TestExtractMultiPass:
         pass2_json = json.dumps({"name": [0], "age": [0]})
         pass3_json = json.dumps(
             {
-                "name": {"value": "Alice", "citations": [{"page": 0, "lines": [0]}]},
-                "age": {"value": 30, "citations": [{"page": 0, "lines": [1]}]},
+                "name": {"value": "Alice", "citations": [{"page": 0, "blocks": [0]}]},
+                "age": {"value": 30, "citations": [{"page": 0, "blocks": [1]}]},
             }
         )
         llm = FakeLLM(responses=[pass1_json, pass2_json, pass3_json])
@@ -367,8 +373,8 @@ class TestExtractMultiPass:
         pass2_json = json.dumps({"name": [0], "age": [0]})
         pass3_json = json.dumps(
             {
-                "name": {"value": "Alice", "citations": [{"page": 0, "lines": [0]}]},
-                "age": {"value": 30, "citations": [{"page": 0, "lines": [1]}]},
+                "name": {"value": "Alice", "citations": [{"page": 0, "blocks": [0]}]},
+                "age": {"value": 30, "citations": [{"page": 0, "blocks": [1]}]},
             }
         )
         llm = FakeLLM(responses=[pass1_json, pass2_json, pass3_json])
@@ -423,7 +429,8 @@ class TestExtractPageNumbers:
             Page(
                 blocks=[
                     TextBlock(
-                        lines=[Line(text=f"page{i} content", bounding_box=self._BBOX)]
+                        lines=[Line(text=f"page{i} content", bounding_box=self._BBOX)],
+                        bounding_box=self._BBOX,
                     )
                 ],
                 width=100,
@@ -506,8 +513,8 @@ class TestExtractPageNumbers:
         pass2_json = json.dumps({"name": [0], "age": [0]})
         pass3_json = json.dumps(
             {
-                "name": {"value": "Alice", "citations": [{"page": 0, "lines": [0]}]},
-                "age": {"value": 30, "citations": [{"page": 0, "lines": [0]}]},
+                "name": {"value": "Alice", "citations": [{"page": 0, "blocks": [0]}]},
+                "age": {"value": 30, "citations": [{"page": 0, "blocks": [0]}]},
             }
         )
         llm = FakeLLM(responses=[pass1_json, pass2_json, pass3_json])
@@ -539,8 +546,8 @@ class TestExtractPageNumbers:
         pass2_json = json.dumps({"name": [0], "age": [0]})
         pass3_json = json.dumps(
             {
-                "name": {"value": "Alice", "citations": [{"page": 0, "lines": [0]}]},
-                "age": {"value": 30, "citations": [{"page": 0, "lines": [0]}]},
+                "name": {"value": "Alice", "citations": [{"page": 0, "blocks": [0]}]},
+                "age": {"value": 30, "citations": [{"page": 0, "blocks": [0]}]},
             }
         )
         llm = FakeLLM(responses=[pass1_json, pass2_json, pass3_json])
@@ -573,8 +580,8 @@ class TestExtractPageNumbers:
         pass2_json = json.dumps({"name": [0], "age": [1]})
         pass3_json = json.dumps(
             {
-                "name": {"value": "Alice", "citations": [{"page": 0, "lines": [0]}]},
-                "age": {"value": 30, "citations": [{"page": 0, "lines": [0]}]},
+                "name": {"value": "Alice", "citations": [{"page": 0, "blocks": [0]}]},
+                "age": {"value": 30, "citations": [{"page": 0, "blocks": [0]}]},
             }
         )
         llm = FakeLLM(responses=[pass1_json, pass2_json, pass3_json])
@@ -605,8 +612,8 @@ class TestExtractPageNumbers:
         pass2_json = json.dumps({"name": [2], "age": [2]})
         pass3_json = json.dumps(
             {
-                "name": {"value": "Alice", "citations": [{"page": 2, "lines": [0]}]},
-                "age": {"value": 30, "citations": [{"page": 2, "lines": [0]}]},
+                "name": {"value": "Alice", "citations": [{"page": 2, "blocks": [0]}]},
+                "age": {"value": 30, "citations": [{"page": 2, "blocks": [0]}]},
             }
         )
         llm = FakeLLM(responses=[pass1_json, pass2_json, pass3_json])
@@ -644,8 +651,8 @@ class TestSinglePassVsMultiPassAlignment:
     # Shared citation response used as the LLM answer in both modes.
     _CITATION_JSON = json.dumps(
         {
-            "name": {"value": "Alice", "citations": [{"page": 0, "lines": [0]}]},
-            "age": {"value": 30, "citations": [{"page": 0, "lines": [1]}]},
+            "name": {"value": "Alice", "citations": [{"page": 0, "blocks": [0]}]},
+            "age": {"value": 30, "citations": [{"page": 0, "blocks": [1]}]},
         }
     )
     _PLAIN_JSON = json.dumps({"name": "Alice", "age": 30})
