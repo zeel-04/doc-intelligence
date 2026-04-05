@@ -1,0 +1,61 @@
+{
+  "pages": [
+    {
+      "page_index": 0,
+      "width": 1684,
+      "height": 1190,
+      "blocks": [
+        {
+          "block_type": "table",
+          "bbox": {
+            "x0": 34,
+            "y0": 30,
+            "x1": 1109,
+            "y1": 250
+          },
+          "text": "| DATE | CODE | DESCRIPTION OF SERVICE | CHARGE | ADJUSTMENT | INS PYMT | PAT RESP | PAT PYMT | BALANCE |\n|---|---|---|---|---|---|---|---|---|\n| 09/24/21 | | MEDLAB2020 INC\nBLUE SHIELD OF CALIFORNIA (BS CA) | 300.00 | 0.00 | 0.00\n0.00 | 300.00 | 0.00 | 300.00 |\n| 09/24/21 | U0003 | COV-19 AMP PRB HGH THRUPUT\nOTHER PR | 225.00 | 0.00 | 0.00 | 225.00 | | |\n| 09/24/21 | U0005 | INFEC AGEN DETEC AMPLI PROBE\nOTHER PR | 75.00 | 0.00 | 0.00 | 75.00 | | |"
+        },
+        {
+          "block_type": "table",
+          "bbox": {
+            "x0": 657,
+            "y0": 738,
+            "x1": 1109,
+            "y1": 755
+          },
+          "text": "| | | | |\n|---|---|---|---|\n| 0.00 | 0.00 | 0.00 | 30 |"
+        },
+        {
+          "block_type": "table",
+          "bbox": {
+            "x0": 29,
+            "y0": 788,
+            "x1": 1111,
+            "y1": 915
+          },
+          "text": "| | CURRENT | 30 DAYS | 60 DAYS | 90 DAYS | 120 DAYS | TOTAL ACCOUNT BALAN |\n|---|---|---|---|---|---|---|\n| | | | | | | 0.00 |\n| INSURANCE | | | | | 300.00 | 300.00 |\n| PATIENT | | | | | | 300.00 |"
+        },
+        {
+          "block_type": "text",
+          "bbox": {
+            "x0": 29,
+            "y0": 959,
+            "x1": 584,
+            "y1": 992
+          },
+          "text": "F INS. SENT CHECK TO YOU/SUBSCRIBER, ENDORSE CHECK TO\nMAIL TO ADDRESS ABOVE. IF CHECK WAS CASHED,"
+        },
+        {
+          "block_type": "text",
+          "bbox": {
+            "x0": 800,
+            "y0": 959,
+            "x1": 1070,
+            "y1": 992
+          },
+          "text": "PLEASE PAY\nTHIS AMOUNT $ 3"
+        }
+      ]
+    }
+  ]
+}
