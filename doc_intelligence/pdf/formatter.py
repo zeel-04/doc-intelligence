@@ -105,7 +105,8 @@ class PDFFormatter(BaseFormatter):
 
         view = PDF(pages=pages_to_format)
 
-        if document.include_citations:
+        include_citations = kwargs.get("include_citations", True)
+        if include_citations:
             return "\n\n".join(self._format_with_block_indices(view))
         else:
             return "\n\n".join(self._format_without_block_indices(view))

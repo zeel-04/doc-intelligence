@@ -14,14 +14,14 @@ from tests_integration.conftest import assert_valid_response
 class TestAnthropicLLMIntegration:
     """Smoke-test AnthropicLLM against the live Anthropic Messages API."""
 
-    def test_generate_text_returns_valid_response(
+    def test_generate_returns_valid_response(
         self,
         require_anthropic_key: None,
         standard_prompts: tuple[str, str],
     ) -> None:
         llm = AnthropicLLM()
         system_prompt, user_prompt = standard_prompts
-        response = llm.generate_text(
+        response = llm.generate(
             system_prompt=system_prompt,
             user_prompt=user_prompt,
             model="claude-sonnet-4-20250514",
@@ -35,7 +35,7 @@ class TestAnthropicLLMIntegration:
     ) -> None:
         llm = AnthropicLLM()
         system_prompt, user_prompt = standard_prompts
-        response = llm.generate_text(
+        response = llm.generate(
             system_prompt=system_prompt,
             user_prompt=user_prompt,
             model="claude-sonnet-4-20250514",

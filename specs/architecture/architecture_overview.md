@@ -6,28 +6,33 @@
 
 The pipeline accepts a PDF file path and a Pydantic schema defining the desired output structure. Before any processing begins, the restrictions layer validates file size, page count, and schema nesting depth against configurable limits to reject oversized or overly complex requests early.
 
-## 2. PDF Type Selection
+## 2. Strategy Selection
 
-The caller specifies the document type (`"digital"` or `"scanned"`) when invoking the pipeline. This selection decides which parser handles the document. Digital PDFs contain an extractable text layer; scanned PDFs are image-based and require OCR.
+The caller specifies the parse strategy (`DIGITAL` or `SCANNED`) when constructing `PDFParser`. This selection decides the internal parsing path. Digital PDFs contain an extractable text layer; scanned PDFs are image-based and require OCR.
 
 ## 3. Parsing Phase
 
-### 3.1 Digital PDF Parsing
+`PDFParser` is a unified, strategy-based parser that dispatches to the appropriate internal method based on the configured `ParseStrategy`.
 
-`DigitalPDFParser` uses pdfplumber to extract text lines along with their bounding boxes directly from the PDF's text layer. Each line becomes a `TextBlock` with precise positional metadata.
+### 3.1 Digital Strategy
 
-### 3.2 Scanned PDF Parsing
+Uses pdfplumber to extract text lines along with their bounding boxes directly from the PDF's text layer. Each line becomes a `TextBlock` with precise positional metadata.
 
-`ScannedPDFParser` renders each page to an image via pypdfium2 and then runs an OCR pipeline to extract structured text. Two pipeline architectures are supported:
+### 3.2 Scanned Strategy
 
-- **Two-Stage (Separate Layout + OCR):** Page images are batched through a layout detection model first, producing bounding boxes for text blocks, tables, and figures. All detected regions are then collected into a flat list and batched through a separate OCR model for text recognition. Results are reassembled back to their originating pages using region metadata.
-- **Single-Stage (Unified Layout + OCR):** A single visual language model performs both layout detection and text recognition in one batched call per page, returning regions with spatial coordinates and recognized text together. No reassembly step is needed.
+Renders each page to an image via pypdfium2 and then runs an OCR pipeline to extract structured text. The current implementation uses the **Two-Stage (Separate Layout + OCR)** architecture:
 
-Both architectures produce the same output — `TextBlock` and `TableBlock` content with spatial metadata. The two-stage approach allows swapping layout or OCR models independently, while the single-stage approach is simpler with fewer inference passes.
+- A `BaseLayoutDetector` segments each page into typed regions (text, table, image, chart).
+- A `BaseOCREngine` recognizes text within each non-image/non-chart region.
+- Pages are processed sequentially; regions within a page are OCR'd concurrently.
+
+A **Single-Stage (Unified Layout + OCR)** architecture — where a single visual language model performs both layout detection and text recognition in one call — is described in `specs/architecture/ocr_pipeline.md` but not yet implemented.
+
+Both architectures produce the same output — `TextBlock` and `TableBlock` content with spatial metadata. Only these two block types are fully supported end-to-end. `ImageBlock` and `ChartBlock` are created as content-less placeholders preserving layout structure, pending future VLM support.
 
 ## 4. PDFDocument Model
 
-Both parsers produce a `PDFDocument` — a list of `Page` objects, each containing an ordered sequence of `ContentBlock` items (text, table, image, chart). This unified structure is the handoff point between parsing and downstream stages.
+`PDFParser` produces a `PDFDocument` — a list of `Page` objects, each containing an ordered sequence of `ContentBlock` items (text, table, image, chart). This unified structure is the handoff point between parsing and downstream stages.
 
 ## 5. Formatting
 

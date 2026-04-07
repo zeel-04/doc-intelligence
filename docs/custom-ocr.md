@@ -1,6 +1,12 @@
-# Custom OCR Components
+# Custom OCR Components (planned)
 
-The scanned PDF pipeline is fully pluggable. Implement the
+!!! warning
+    The two-stage scanned pipeline (`ScannedPipelineType.TWO_STAGE`) is **not
+    yet implemented**. The contracts below are defined and ready for use, but
+    selecting `TWO_STAGE` will raise `NotImplementedError`. Use the VLM
+    pipeline for scanned PDF extraction today.
+
+The scanned PDF pipeline will be fully pluggable. Implement the
 `BaseLayoutDetector` and `BaseOCREngine` abstract base class contracts
 to provide your own layout detection and OCR capabilities.
 
@@ -73,11 +79,12 @@ from doc_intelligence import (
     BaseLayoutDetector,
     BaseOCREngine,
     BoundingBox,
-    DocumentProcessor,
+    PDFProcessor,
+    ParseStrategy,
+    ScannedPipelineType,
     LayoutRegion,
 )
-from doc_intelligence.pdf.schemas import Line
-from doc_intelligence.llm import OpenAILLM
+from doc_intelligence.schemas.core import Line
 
 
 class MyLayoutDetector(BaseLayoutDetector):
@@ -96,12 +103,13 @@ class MyLayoutDetector(BaseLayoutDetector):
 class MyOCREngine(BaseOCREngine):
     def ocr(self, region_image: np.ndarray) -> list[Line]:
         # Call your OCR service here
-        return [Line(text="Hello, world!")]
+        return [Line(text="Hello, world!", bounding_box=BoundingBox(x0=0, top=0, x1=1, bottom=1))]
 
 
-llm = OpenAILLM(model="gpt-4o")
-processor = DocumentProcessor.from_scanned_pdf(
-    llm=llm,
+processor = PDFProcessor(
+    provider="openai",
+    strategy=ParseStrategy.SCANNED,
+    scanned_pipeline=ScannedPipelineType.TWO_STAGE,
     layout_detector=MyLayoutDetector(),
     ocr_engine=MyOCREngine(),
     dpi=150,
@@ -110,19 +118,23 @@ processor = DocumentProcessor.from_scanned_pdf(
 result = processor.extract("scanned.pdf", MySchema)
 ```
 
-## Using ScannedPDFParser Directly
+## Using PDFParser Directly
 
-You can also instantiate `ScannedPDFParser` directly and pass it to
+You can also instantiate `PDFParser` directly and pass it to
 `DocumentProcessor` alongside any formatter and extractor:
 
 ```python
-from doc_intelligence import DocumentProcessor, ScannedPDFParser
+from doc_intelligence import DocumentProcessor
+from doc_intelligence.pdf.parser import PDFParser
 from doc_intelligence.pdf.formatter import PDFFormatter
 from doc_intelligence.pdf.extractor import PDFExtractor
+from doc_intelligence.pdf.types import ParseStrategy, ScannedPipelineType
 from doc_intelligence.llm import OpenAILLM
 
 llm = OpenAILLM()
-parser = ScannedPDFParser(
+parser = PDFParser(
+    strategy=ParseStrategy.SCANNED,
+    scanned_pipeline=ScannedPipelineType.TWO_STAGE,
     layout_detector=MyLayoutDetector(),
     ocr_engine=MyOCREngine(),
     dpi=200,

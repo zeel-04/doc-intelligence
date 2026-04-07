@@ -5,8 +5,7 @@ from collections.abc import Callable
 import pytest
 
 from doc_intelligence.pdf.formatter import PDFFormatter
-from doc_intelligence.pdf.parser import DigitalPDFParser
-from doc_intelligence.pdf.schemas import PDFDocument
+from doc_intelligence.pdf.parser import PDFParser
 from tests.integration.test_cases import FORMAT_CASES
 
 
@@ -18,13 +17,13 @@ class TestFormat:
 
     @pytest.mark.parametrize("case", FORMAT_CASES, ids=lambda c: c["id"])
     def test_format(self, case: dict, pdf_path: Callable[[str], str]) -> None:
-        parser = DigitalPDFParser()
-        doc = PDFDocument(uri=pdf_path(case["pdf"]))
-        doc = parser.parse(doc)
-        doc.include_citations = case["include_citations"]
+        parser = PDFParser()
+        doc = parser.parse(pdf_path(case["pdf"]))
 
         formatter = PDFFormatter()
-        output = formatter.format_document_for_llm(doc)
+        output = formatter.format_document_for_llm(
+            doc, include_citations=case["include_citations"]
+        )
 
         for substring in case["expected"]["contains"]:
             assert substring in output, f"Expected {substring!r} in formatted output"

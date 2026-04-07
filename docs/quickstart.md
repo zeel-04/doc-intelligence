@@ -40,42 +40,38 @@ echo "GOOGLE_API_KEY=your-api-key-here" > .env
 
 Here's a simple example to extract structured data from a PDF document.
 
-### Processing PDFs from URLs or Local Files
-
-Document AI supports both local file paths and URLs:
+Create a `PDFProcessor` once with your pipeline configuration. The document and schema are always provided per call:
 
 ```python
 from dotenv import load_dotenv
 from pydantic import BaseModel
 
-from doc_intelligence import PDFProcessor
+from doc_intelligence import PDFExtractionMode, PDFProcessor
 
-# Load environment variables
 load_dotenv()
 
-# Define your data model
 class License(BaseModel):
     license_name: str
 
-# Create a processor — supports "openai", "anthropic", "gemini", "ollama"
-processor = PDFProcessor(provider="openai")
-
-# Extract from a URL
-result = processor.extract(
-    uri="https://example-files.online-convert.com/document/pdf/example.pdf",
-    response_format=License,
-    include_citations=True,
-    extraction_mode="single_pass",
+processor = PDFProcessor(
+    provider="openai",
     model="gpt-4o-mini",
+    include_citations=True,
+    extraction_mode=PDFExtractionMode.SINGLE_PASS,
+    llm_config={"temperature": 0.2},
+)
+
+result = processor.extract(
+    "https://example-files.online-convert.com/document/pdf/example.pdf",
+    License,
 )
 
 # Or from a local file:
-# result = processor.extract(
-#     uri="path/to/your/document.pdf",
-#     response_format=License,
-# )
+# result = processor.extract("path/to/your/document.pdf", License)
 
-# Access the extracted data and citations
+# Different schema, same processor
+# result = processor.extract("receipt.pdf", Receipt, page_numbers=[0])
+
 print(f"Extracted data: {result.data}")
 print(f"Metadata: {result.metadata}")
 ```
@@ -108,14 +104,24 @@ result.metadata
 # }
 ```
 
-### Configuration Options
+### Configuration Reference
 
-The `extract()` method accepts these keyword arguments:
+**`PDFProcessor` constructor** — pipeline config, set once:
 
-- **`uri`**: Path to a local PDF file or a URL
-- **`response_format`**: Your Pydantic model class defining the extraction schema
-- **`include_citations`**: Set to `True` to get citation information with bounding boxes (default: `True`)
-- **`extraction_mode`**: `"single_pass"` or `"multi_pass"` (default: `"single_pass"`)
-- **`page_numbers`**: Optional list of page indices to process (0-indexed)
-- **`model`**: Override the default model for this call (e.g., `"gpt-4o"`)
-- **`llm_config`**: Additional LLM configuration as a dict (e.g., `{"reasoning": {"effort": "minimal"}}`)
+| Parameter | Description | Default |
+|---|---|---|
+| `provider` | LLM provider (`"openai"`, `"anthropic"`, `"gemini"`, `"ollama"`) | required\* |
+| `model` | Model name for the provider | provider default |
+| `include_citations` | Include citation bounding boxes in results | `True` |
+| `extraction_mode` | `SINGLE_PASS` or `MULTI_PASS` | `SINGLE_PASS` |
+| `llm_config` | Generation parameters (e.g. `{"temperature": 0.2}`) | `None` |
+
+\* Or pass a pre-built `llm=` instance instead of `provider`.
+
+**`processor.extract()`** — document-specific, vary per call:
+
+| Parameter | Description |
+|---|---|
+| `uri` | Path or URL of the PDF (required) |
+| `response_format` | Pydantic model class for the extraction schema (required) |
+| `page_numbers` | List of 0-indexed page numbers to process (default: all pages) |

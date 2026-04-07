@@ -32,7 +32,6 @@ Compare what you found in step 1 against what the specs say. Identify:
 - **Missing from specs:** new modules, classes, functions, schemas, config fields, test files, or dependencies that exist in code but are not documented in specs.
 - **Stale in specs:** things described in specs that no longer exist, have been renamed, moved, or have different signatures/behavior.
 - **Incorrect phase status:** phases marked as "not started" that have partial or complete implementations, or phases marked "done" that are incomplete.
-- **Version/date drift:** spec version numbers or "last updated" dates that are outdated.
 - **Architecture drift:** data flows, component relationships, or design decisions that have changed.
 
 ### 4. Update specs

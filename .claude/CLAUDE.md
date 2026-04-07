@@ -9,18 +9,17 @@
 ```
 doc_intelligence/
 ├── pdf/                    # All PDF-specific logic
-│   ├── parser.py           # PDFParser (abstract), DigitalPDFParser — parse PDFs into structured PDFDocument objects
+│   ├── parser.py           # PDFParser (unified, strategy-based: digital + scanned)
 │   ├── extractor.py        # PDFExtractor — single-pass & multi-pass extraction with citation enrichment
 │   ├── formatter.py        # PDFFormatter — format PDF content for LLM consumption with line numbers
-│   ├── processor.py        # DocumentProcessor (reusable pipeline), PDFProcessor (convenience wrapper with LLM factory)
-│   ├── schemas.py          # PDF, PDFDocument, PDFExtractionConfig — PDF-specific document models (block types and Page live in schemas/core.py)
-│   ├── types.py            # PDFExtractionMode enum (SINGLE_PASS, MULTI_PASS)
+│   ├── processor.py        # DocumentProcessor (generic orchestrator), PDFProcessor (convenience wrapper with LLM factory)
+│   ├── schemas.py          # PDF, PDFDocument, PDFExtractionRequest — PDF-specific document and request models
+│   ├── types.py            # PDFExtractionMode, ParseStrategy, ScannedPipelineType enums
 │   └── utils.py            # enrich_citations_with_bboxes() — add bounding boxes to citation metadata
 ├── schemas/
-│   └── core.py             # BoundingBox, Line, Cell, TextBlock, TableBlock, ImageBlock, ChartBlock, ContentBlock, Page, BaseCitation, Document, ExtractionResult, ExtractionConfig, PydanticModel TypeVar
+│   └── core.py             # BoundingBox, Line, Cell, TextBlock, TableBlock, ImageBlock, ChartBlock, ContentBlock, Page, BaseCitation, Document, ExtractionRequest, ExtractionResult, PydanticModel TypeVar
 ├── base.py                 # Abstract bases: BaseParser, BaseFormatter, BaseLLM, BaseExtractor
 ├── llm.py                  # OpenAILLM, OllamaLLM, AnthropicLLM, GeminiLLM + create_llm() factory
-├── extract.py              # extract() — top-level one-liner convenience function wrapping PDFProcessor
 ├── restrictions.py         # check_pdf_size(), check_page_count(), check_schema_depth() — hard-limit validators
 ├── config.py               # DocIntelligenceConfig — per-provider default models, size/page/depth limits, async settings
 ├── utils.py                # normalize_bounding_box, strip_citations — bbox transforms and citation stripping
@@ -40,7 +39,6 @@ tests/                      # Mirrors doc_intelligence/ structure exactly
 ├── conftest.py             # Shared fixtures: FakeLLM, FakeParser, FakeExtractor, sample_pdf, etc.
 ├── test_base.py
 ├── test_llm.py
-├── test_extract.py
 ├── test_restrictions.py
 ├── test_utils.py
 └── test_pydantic_to_json_instance_schema.py
@@ -52,10 +50,9 @@ tests/                      # Mirrors doc_intelligence/ structure exactly
 
 Everything in `__all__` from `doc_intelligence/__init__.py` is the public surface. Currently:
 
-- **One-liner:** `extract()`
 - **Processors:** `PDFProcessor`, `DocumentProcessor`
 - **LLMs:** `create_llm()`, `BaseLLM`, `OpenAILLM`, `OllamaLLM`, `AnthropicLLM`, `GeminiLLM`
-- **PDF types:** `PDFDocument`, `PDFExtractionMode`, `PDFExtractionConfig`
+- **PDF types:** `PDFDocument`, `PDFExtractionMode`, `PDFExtractionRequest`, `PDFParser`, `ParseStrategy`, `ScannedPipelineType`
 - **Primitives:** `ExtractionResult`, `BoundingBox`, `BaseCitation`
 
 Everything else is internal. Users should never import from submodules directly (e.g. `from doc_intelligence.pdf.parser import ...`).
@@ -70,8 +67,7 @@ Everything else is internal. Users should never import from submodules directly 
 2. **One step at a time.** Implement and verify each step by writing relevant test if not already, before moving on.
 3. **Verify after every step.** Run `uv run pytest tests/` and `ruff check` + `ruff format --check` after each change.
 4. **Never leave the codebase broken** between steps.
-5. **Bump spec versions after every spec change** After any modification to the codebase if it requires to change plan, then, increment the minor version (e.g. `1.1` → `1.2`) in both `specs/prd.md` and `specs/engineering_design.md`. Do this automatically — never wait to be asked.
-6. **Ping me if CLAUDE.md needs to be updated** If during code modifications/planning if there's anything worth adding/updating/deleting from CLAUDE.md then propose me with a summarized pros & cons.
+5. **Ping me if CLAUDE.md needs to be updated** If during code modifications/planning if there's anything worth adding/updating/deleting from CLAUDE.md then propose me with a summarized pros & cons.
 
 ## Git Conventions
 
@@ -116,9 +112,9 @@ uv run pyrefly check .        # type checking
 
 - **Single Responsibility:** Each module/class has one job — parser parses, formatter formats, extractor extracts, processor orchestrates. Never mix concerns across these boundaries.
 - **Open/Closed:** Extend via subclassing `BaseParser`, `BaseFormatter`, `BaseLLM`, `BaseExtractor` in `base.py`. New LLM providers go in `_LLM_REGISTRY` in `llm.py`. Never add `if doc_type == ...` conditionals to existing implementations.
-- **Liskov Substitution:** All subclasses must match their base interface exactly — same signatures, same return types, same exception semantics. `generate_structured_output()` on `BaseLLM` is opt-in (raises `NotImplementedError` by default).
-- **Interface Segregation:** Abstract bases stay minimal — one abstract method each (`parse`, `format_document_for_llm`, `generate_text`, `extract`). Don't force methods that subclasses don't need.
-- **Dependency Inversion:** `DocumentProcessor` accepts abstract types via constructor injection. Concrete wiring happens at call sites or in factory methods like `from_digital_pdf()` and `create_llm()`. `PDFProcessor` is a convenience wrapper that delegates to `DocumentProcessor`.
+- **Liskov Substitution:** All subclasses must match their base interface exactly — same signatures, same return types, same exception semantics.
+- **Interface Segregation:** Abstract bases stay minimal — one abstract method each (`parse`, `format_document_for_llm`, `generate`, `extract`). Don't force methods that subclasses don't need.
+- **Dependency Inversion:** `DocumentProcessor` accepts abstract types via constructor injection. Concrete wiring happens at call sites (e.g. `create_llm()`) or in `PDFProcessor`, which is a convenience wrapper that wires PDF-specific components and delegates to `DocumentProcessor`.
 
 ### Type Annotations
 
@@ -152,18 +148,18 @@ Citations are block-level: `{"page": <int>, "blocks": [<int>]}`. `ContentBlock` 
 ## Testing Conventions
 
 - **Mirror structure:** every `doc_intelligence/foo/bar.py` has a corresponding `tests/foo/test_bar.py`.
-- **Group tests into classes:** `TestDigitalPDFParser`, `TestExtractSinglePass`, etc.
+- **Group tests into classes:** `TestPDFParser`, `TestExtractSinglePass`, etc.
 - **Section separators** between test classes:
   ```python
   # ---------------------------------------------------------------------------
-  # DigitalPDFParser
+  # PDFParser
   # ---------------------------------------------------------------------------
-  class TestDigitalPDFParser:
+  class TestPDFParser:
   ```
 - **One behavior per test**, named descriptively: `test_bboxes_are_normalized`, `test_http_error_propagates`.
 - Use `@pytest.mark.parametrize` for data-driven cases.
 - Use `pytest.raises` for expected exceptions.
-- Absolute imports: `from doc_intelligence.pdf.parser import DigitalPDFParser`.
+- Absolute imports: `from doc_intelligence.pdf.parser import PDFParser`.
 - Shared fixtures live in `tests/conftest.py` (`FakeLLM`, `FakeParser`, `sample_pdf`, `sample_pdf_document`, etc.).
 - Target **100% coverage** — every public function, branch, and edge case must be tested.
 - Add module-level docstring: `"""Tests for pdf.parser module."""`

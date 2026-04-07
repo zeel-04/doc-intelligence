@@ -11,19 +11,18 @@ from tests.conftest import FakeExtractor, FakeLLM
 # BaseParser generics
 # ---------------------------------------------------------------------------
 class TestBaseParserGeneric:
-    def test_parse_returns_same_document_type(self):
+    def test_parse_returns_correct_document_type(self):
         """BaseParser[PDFDocument] subclass parse() returns PDFDocument."""
         from doc_intelligence.pdf.schemas import PDFDocument
 
         class ConcreteParser(BaseParser[PDFDocument]):
-            def parse(self, document: PDFDocument) -> PDFDocument:
-                return document
+            def parse(self, uri: str) -> PDFDocument:
+                return PDFDocument(uri=uri)
 
         parser = ConcreteParser()
-        doc = PDFDocument(uri="test.pdf")
-        result = parser.parse(doc)
-        assert result is doc
+        result = parser.parse("test.pdf")
         assert isinstance(result, PDFDocument)
+        assert result.uri == "test.pdf"
 
     def test_subclass_missing_parse_raises(self):
         """Incomplete BaseParser[PDFDocument] subclass cannot be instantiated."""
@@ -75,7 +74,7 @@ class TestIncompleteSubclassRaises:
         with pytest.raises(TypeError):
             BadFormatter()  # type: ignore[abstract]
 
-    def test_llm_missing_generate_text(self):
+    def test_llm_missing_generate(self):
         class BadLLM(BaseLLM):
             pass
 
@@ -88,35 +87,6 @@ class TestIncompleteSubclassRaises:
 
         with pytest.raises(TypeError):
             BadExtractor(fake_llm)  # type: ignore[abstract]
-
-
-# ---------------------------------------------------------------------------
-# BaseLLM.generate_structured_output default
-# ---------------------------------------------------------------------------
-class TestBaseLLMGenerateStructuredOutput:
-    def test_raises_not_implemented(self, fake_llm: FakeLLM):
-        from pydantic import BaseModel
-
-        class MyModel(BaseModel):
-            value: str
-
-        with pytest.raises(
-            NotImplementedError, match="does not support structured output"
-        ):
-            fake_llm.generate_structured_output(
-                system_prompt="sys",
-                user_prompt="usr",
-                response_format=MyModel,
-            )
-
-    def test_error_message_includes_class_name(self, fake_llm: FakeLLM):
-        from pydantic import BaseModel
-
-        class MyModel(BaseModel):
-            value: str
-
-        with pytest.raises(NotImplementedError, match="FakeLLM"):
-            fake_llm.generate_structured_output("s", "u", MyModel)
 
 
 # ---------------------------------------------------------------------------

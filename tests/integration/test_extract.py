@@ -4,7 +4,7 @@ from collections.abc import Callable
 
 import pytest
 
-from doc_intelligence.pdf.processor import DocumentProcessor, PDFProcessor
+from doc_intelligence.pdf.processor import PDFProcessor
 from tests.conftest import FakeLLM
 from tests.integration.conftest import resolve_schema
 from tests.integration.test_cases import EXTRACT_CASES, LIVE_EXTRACT_CASES
@@ -20,13 +20,9 @@ class TestExtractMocked:
     def test_extract(self, case: dict, pdf_path: Callable[[str], str]) -> None:
         schema = resolve_schema(case["schema"])
         llm = FakeLLM(text_response=case["mock_llm_response"])
-        processor = DocumentProcessor.from_digital_pdf(llm=llm)
+        processor = PDFProcessor(llm=llm, **case["config"])
 
-        result = processor.extract(
-            uri=pdf_path(case["pdf"]),
-            response_format=schema,
-            **case["config"],
-        )
+        result = processor.extract(pdf_path(case["pdf"]), schema)
 
         assert result.data is not None
         assert result.data.model_dump() == case["expected_data"]
@@ -42,13 +38,9 @@ class TestExtractLive:
     @pytest.mark.parametrize("case", LIVE_EXTRACT_CASES, ids=lambda c: c["id"])
     def test_extract_live(self, case: dict, pdf_path: Callable[[str], str]) -> None:
         schema = resolve_schema(case["schema"])
-        processor = PDFProcessor(provider=case["provider"])
+        processor = PDFProcessor(provider=case["provider"], **case["config"])
 
-        result = processor.extract(
-            uri=pdf_path(case["pdf"]),
-            response_format=schema,
-            **case["config"],
-        )
+        result = processor.extract(pdf_path(case["pdf"]), schema)
 
         assert result.data is not None
         assert result.data.model_dump() == case["expected_data"]

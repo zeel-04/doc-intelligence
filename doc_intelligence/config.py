@@ -25,5 +25,8 @@ class DocIntelligenceConfig(BaseSettings):
     max_concurrent_pages: int = Field(default=4)
     max_concurrent_regions: int = Field(default=8)
 
+    # VLM pipeline
+    vlm_batch_size: int = Field(default=1)
+
 
 settings = DocIntelligenceConfig()

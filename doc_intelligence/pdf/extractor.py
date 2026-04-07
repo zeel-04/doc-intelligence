@@ -6,14 +6,19 @@ from loguru import logger
 
 from doc_intelligence.base import BaseExtractor, BaseFormatter
 from doc_intelligence.llm import BaseLLM
-from doc_intelligence.pdf.schemas import PDFDocument
+from doc_intelligence.pdf.schemas import PDFDocument, PDFExtractionRequest
 from doc_intelligence.pdf.types import PDFExtractionMode
 from doc_intelligence.pdf.utils import enrich_citations_with_bboxes
 from doc_intelligence.pydantic_to_json_instance_schema import (
     pydantic_to_json_instance_schema,
     stringify_schema,
 )
-from doc_intelligence.schemas.core import Document, ExtractionResult, PydanticModel
+from doc_intelligence.schemas.core import (
+    Document,
+    ExtractionRequest,
+    ExtractionResult,
+    PydanticModel,
+)
 from doc_intelligence.utils import strip_citations
 
 _PASS2_SYSTEM_PROMPT = "Act as an expert in document analysis and page localisation."
@@ -71,22 +76,20 @@ Generate output in JSON format.
     def extract(
         self,
         document: Document,
-        llm_config: dict[str, Any],
-        extraction_config: dict[str, Any],
+        request: ExtractionRequest,
         formatter: BaseFormatter,
-        response_format: type[PydanticModel],
     ) -> ExtractionResult:
-        if document.extraction_mode == PDFExtractionMode.SINGLE_PASS:
-            return self._run_single_pass(
-                document, formatter, response_format, llm_config
-            )
-        elif document.extraction_mode == PDFExtractionMode.MULTI_PASS:
-            assert isinstance(document, PDFDocument)
-            return self._run_multi_pass(
-                document, formatter, response_format, llm_config
-            )
+        pdf_request = _as_pdf_request(request)
+        llm_config = pdf_request.llm_config or {}
+
+        if pdf_request.extraction_mode == PDFExtractionMode.SINGLE_PASS:
+            return self._run_single_pass(document, pdf_request, formatter, llm_config)
+        elif pdf_request.extraction_mode == PDFExtractionMode.MULTI_PASS:
+            return self._run_multi_pass(document, pdf_request, formatter, llm_config)
         else:
-            raise ValueError(f"Unsupported extraction mode: {document.extraction_mode}")
+            raise ValueError(
+                f"Unsupported extraction mode: {pdf_request.extraction_mode}"
+            )
 
     # ------------------------------------------------------------------
     # Single-pass (existing behaviour, extracted to a private method)
@@ -95,30 +98,31 @@ Generate output in JSON format.
     def _run_single_pass(
         self,
         document: Document,
+        request: PDFExtractionRequest,
         formatter: BaseFormatter,
-        response_format: type[PydanticModel],
         llm_config: dict[str, Any],
     ) -> ExtractionResult:
         json_instance_schema = stringify_schema(
             pydantic_to_json_instance_schema(
-                response_format,
-                citation=document.include_citations,
+                request.response_format,
+                citation=request.include_citations,
                 citation_level="block",
             )
         )
         logger.debug(
             f"PDFExtractor: extract: json_instance_schema: {json_instance_schema}"
         )
-        page_numbers: list[int] | None = getattr(document, "page_numbers", None)
         content_text = formatter.format_document_for_llm(
-            document, page_numbers=page_numbers
+            document,
+            page_numbers=request.page_numbers,
+            include_citations=request.include_citations,
         )
         logger.debug(f"PDFExtractor: extract: content_text: {content_text}")
         user_prompt = self.user_prompt.format(
             content_text=content_text, schema=json_instance_schema
         )
 
-        response = self.llm.generate_text(
+        response = self.llm.generate(
             system_prompt=self.system_prompt,
             user_prompt=user_prompt,
             **llm_config,
@@ -126,14 +130,14 @@ Generate output in JSON format.
 
         response_dict = self.json_parser.parse(response)
 
-        if document.include_citations:
+        if request.include_citations:
             response_metadata = enrich_citations_with_bboxes(response_dict, document)
             response_dict = strip_citations(response_metadata)
         else:
             response_metadata = None
 
         return ExtractionResult(
-            data=response_format(**response_dict),
+            data=request.response_format(**response_dict),
             metadata=response_metadata,
         )
 
@@ -143,29 +147,32 @@ Generate output in JSON format.
 
     def _run_multi_pass(
         self,
-        document: PDFDocument,
+        document: Document,
+        request: PDFExtractionRequest,
         formatter: BaseFormatter,
-        response_format: type[PydanticModel],
         llm_config: dict[str, Any],
     ) -> ExtractionResult:
         # Pass 1 — raw extraction (no citations)
-        pass1_result = self._extract_pass1(
-            document, formatter, response_format, llm_config
-        )
-        document.pass1_result = pass1_result
+        pass1_result = self._extract_pass1(document, request, formatter, llm_config)
         logger.debug(f"PDFExtractor: multi-pass: pass1 complete: {pass1_result}")
 
-        if not document.include_citations:
+        if not request.include_citations:
             return ExtractionResult(data=pass1_result, metadata=None)
 
         # Pass 2 — page grounding
-        page_map = self._extract_pass2(document, formatter, pass1_result, llm_config)
-        document.pass2_page_map = page_map
+        page_map = self._extract_pass2(
+            document, request, formatter, pass1_result, llm_config
+        )
         logger.debug(f"PDFExtractor: multi-pass: pass2 page_map: {page_map}")
 
         # Pass 3 — block grounding on relevant pages only
         metadata = self._extract_pass3(
-            document, formatter, pass1_result, page_map, response_format, llm_config
+            document,
+            request,
+            formatter,
+            pass1_result,
+            page_map,
+            llm_config,
         )
         logger.debug("PDFExtractor: multi-pass: pass3 complete")
 
@@ -177,32 +184,31 @@ Generate output in JSON format.
 
     def _extract_pass1(
         self,
-        document: PDFDocument,
+        document: Document,
+        request: PDFExtractionRequest,
         formatter: BaseFormatter,
-        response_format: type[PydanticModel],
         llm_config: dict[str, Any],
     ) -> PydanticModel:
         """Raw extraction — schema has no citation wrappers."""
         json_instance_schema = stringify_schema(
-            pydantic_to_json_instance_schema(response_format, citation=False)
+            pydantic_to_json_instance_schema(request.response_format, citation=False)
         )
-        original_citations = document.include_citations
-        document.include_citations = False
         content_text = formatter.format_document_for_llm(
-            document, page_numbers=document.page_numbers
+            document,
+            page_numbers=request.page_numbers,
+            include_citations=False,
         )
-        document.include_citations = original_citations
 
         user_prompt = self.user_prompt.format(
             content_text=content_text, schema=json_instance_schema
         )
-        response = self.llm.generate_text(
+        response = self.llm.generate(
             system_prompt=self.system_prompt,
             user_prompt=user_prompt,
             **llm_config,
         )
         response_dict = self.json_parser.parse(response)
-        return response_format(**response_dict)
+        return request.response_format(**response_dict)
 
     # ------------------------------------------------------------------
     # Pass 2 — page grounding
@@ -210,20 +216,23 @@ Generate output in JSON format.
 
     def _extract_pass2(
         self,
-        document: PDFDocument,
+        document: Document,
+        request: PDFExtractionRequest,
         formatter: BaseFormatter,
         pass1_result: PydanticModel,
         llm_config: dict[str, Any],
     ) -> dict[str, list[int]]:
         """Ask the LLM which pages each field appears on."""
         content_text = formatter.format_document_for_llm(
-            document, page_numbers=document.page_numbers
+            document,
+            page_numbers=request.page_numbers,
+            include_citations=request.include_citations,
         )
         user_prompt = _PASS2_USER_PROMPT.format(
             content_text=content_text,
             pass1_json=pass1_result.model_dump_json(),
         )
-        response = self.llm.generate_text(
+        response = self.llm.generate(
             system_prompt=_PASS2_SYSTEM_PROMPT,
             user_prompt=user_prompt,
             **llm_config,
@@ -237,37 +246,55 @@ Generate output in JSON format.
 
     def _extract_pass3(
         self,
-        document: PDFDocument,
+        document: Document,
+        request: PDFExtractionRequest,
         formatter: BaseFormatter,
         pass1_result: PydanticModel,
         page_mapping: dict[str, list[int]],
-        response_format: type[PydanticModel],
         llm_config: dict[str, Any],
     ) -> dict[str, Any]:
         """Block-level grounding restricted to the pages identified in Pass 2."""
         all_pages = sorted({p for pages in page_mapping.values() for p in pages})
-        if document.page_numbers:
-            intersected = [p for p in all_pages if p in document.page_numbers]
+        if request.page_numbers:
+            intersected = [p for p in all_pages if p in request.page_numbers]
             if intersected:
                 all_pages = intersected
 
         json_instance_schema = stringify_schema(
             pydantic_to_json_instance_schema(
-                response_format, citation=True, citation_level="block"
+                request.response_format, citation=True, citation_level="block"
             )
         )
         content_text = formatter.format_document_for_llm(
-            document, page_numbers=all_pages
+            document,
+            page_numbers=all_pages,
+            include_citations=request.include_citations,
         )
         user_prompt = _PASS3_USER_PROMPT.format(
             pass1_json=pass1_result.model_dump_json(),
             content_text=content_text,
             schema=json_instance_schema,
         )
-        response = self.llm.generate_text(
+        response = self.llm.generate(
             system_prompt=self.system_prompt,
             user_prompt=user_prompt,
             **llm_config,
         )
         response_dict = self.json_parser.parse(response)
         return enrich_citations_with_bboxes(response_dict, document)
+
+
+def _as_pdf_request(request: ExtractionRequest) -> PDFExtractionRequest:
+    """Narrow an ExtractionRequest to PDFExtractionRequest.
+
+    If the request is already a PDFExtractionRequest, return it directly.
+    Otherwise wrap it with PDF defaults.
+    """
+    if isinstance(request, PDFExtractionRequest):
+        return request
+    return PDFExtractionRequest(
+        uri=request.uri,
+        response_format=request.response_format,
+        include_citations=request.include_citations,
+        llm_config=request.llm_config,
+    )

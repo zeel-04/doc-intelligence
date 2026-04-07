@@ -26,7 +26,7 @@ MODEL = "qwen3.5:9b"  # any model available for the chosen provider
 SYSTEM_PROMPT = "You are a helpful assistant."
 USER_PROMPT = "What is 2+2"
 
-# ── Provider-specific kwargs (forwarded to generate_text) ─────────────
+# ── Provider-specific kwargs (forwarded to generate) ─────────────
 #    Ollama:    {"think": False, "options": {"temperature": 0.7}}
 #    OpenAI:    {} (most config is on the model side)
 #    Anthropic: {"max_tokens": 1024}
@@ -102,7 +102,7 @@ class TestLLMPlayground:
         if EXTRA_KWARGS:
             logger.info(f"Kwargs   : {EXTRA_KWARGS}")
 
-        response = llm.generate_text(
+        response = llm.generate(
             system_prompt=SYSTEM_PROMPT,
             user_prompt=USER_PROMPT,
             model=MODEL,

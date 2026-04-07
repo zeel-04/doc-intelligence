@@ -1,21 +1,15 @@
 """Tests for schemas.core module."""
 
-from enum import Enum
-
 import pytest
-from pydantic import ValidationError
+from pydantic import BaseModel, ValidationError
 
 from doc_intelligence.schemas.core import (
     BaseCitation,
     BoundingBox,
     Document,
-    ExtractionConfig,
+    ExtractionRequest,
     ExtractionResult,
 )
-
-
-class _DummyMode(Enum):
-    A = "a"
 
 
 # ---------------------------------------------------------------------------
@@ -78,30 +72,16 @@ class TestBaseCitation:
 # ---------------------------------------------------------------------------
 class TestDocument:
     def test_minimal_construction(self):
-        doc = Document(uri="test.pdf", extraction_mode=_DummyMode.A)
+        doc = Document(uri="test.pdf")
         assert doc.uri == "test.pdf"
-        assert doc.extraction_mode is _DummyMode.A
 
     def test_defaults(self):
-        doc = Document(uri="test.pdf", extraction_mode=_DummyMode.A)
+        doc = Document(uri="test.pdf")
         assert doc.content is None
-        assert doc.include_citations is True
-
-    def test_include_citations_override(self):
-        doc = Document(
-            uri="test.pdf",
-            extraction_mode=_DummyMode.A,
-            include_citations=False,
-        )
-        assert doc.include_citations is False
 
     def test_missing_uri_raises(self):
         with pytest.raises(ValidationError):
-            Document(extraction_mode=_DummyMode.A)  # type: ignore[call-arg]
-
-    def test_missing_extraction_mode_raises(self):
-        with pytest.raises(ValidationError):
-            Document(uri="test.pdf")  # type: ignore[call-arg]
+            Document()  # type: ignore[call-arg]
 
 
 # ---------------------------------------------------------------------------
@@ -123,8 +103,6 @@ class TestExtractionResult:
         assert "name" in result.metadata
 
     def test_data_accepts_pydantic_model(self):
-        from pydantic import BaseModel
-
         class Sample(BaseModel):
             name: str
 
@@ -148,17 +126,42 @@ class TestExtractionResult:
 
 
 # ---------------------------------------------------------------------------
-# ExtractionConfig
+# ExtractionRequest
 # ---------------------------------------------------------------------------
-class TestExtractionConfig:
+class TestExtractionRequest:
     def test_construction(self):
-        cfg = ExtractionConfig(include_citations=True)
-        assert cfg.include_citations is True
+        req = ExtractionRequest(
+            uri="test.pdf",
+            response_format=BaseModel,
+            include_citations=True,
+        )
+        assert req.uri == "test.pdf"
+        assert req.response_format is BaseModel
+        assert req.include_citations is True
 
-    def test_false_value(self):
-        cfg = ExtractionConfig(include_citations=False)
-        assert cfg.include_citations is False
+    def test_defaults(self):
+        req = ExtractionRequest(uri="test.pdf", response_format=BaseModel)
+        assert req.include_citations is True
+        assert req.llm_config is None
 
-    def test_missing_field_raises(self):
+    def test_include_citations_false(self):
+        req = ExtractionRequest(
+            uri="test.pdf", response_format=BaseModel, include_citations=False
+        )
+        assert req.include_citations is False
+
+    def test_llm_config(self):
+        req = ExtractionRequest(
+            uri="test.pdf",
+            response_format=BaseModel,
+            llm_config={"temperature": 0.5},
+        )
+        assert req.llm_config == {"temperature": 0.5}
+
+    def test_missing_uri_raises(self):
         with pytest.raises(ValidationError):
-            ExtractionConfig()  # type: ignore[call-arg]
+            ExtractionRequest(response_format=BaseModel)  # type: ignore[call-arg]
+
+    def test_missing_response_format_raises(self):
+        with pytest.raises(ValidationError):
+            ExtractionRequest(uri="test.pdf")  # type: ignore[call-arg]

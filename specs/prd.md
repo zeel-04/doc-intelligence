@@ -1,8 +1,8 @@
 # Product Requirements Document — doc_intelligence
 
-**Version:** 0.3.1
+**Version:** 0.3.6
 **Status:** Living document
-**Last updated:** 2026-04-05
+**Last updated:** 2026-04-06
 
 ---
 
@@ -68,22 +68,23 @@ The library parses text-based (digital/native) PDFs and extracts structured data
 **How it works for the developer:**
 
 ```python
-from doc_intelligence.pdf.processor import DocumentProcessor
-from doc_intelligence.llm import OpenAILLM
 from pydantic import BaseModel
+
+from doc_intelligence import PDFProcessor
 
 class Invoice(BaseModel):
     vendor: str
     total: float
     date: str
 
-processor = DocumentProcessor.from_digital_pdf(llm=OpenAILLM())
-result = processor.extract(
-    uri="invoice.pdf",
-    response_format=Invoice,
+# Pipeline config set once on the constructor
+processor = PDFProcessor(
+    provider="openai",
+    model="gpt-4o-mini",
     include_citations=True,
-    llm_config={"model": "gpt-4o-mini"},
 )
+# Per-call: document and schema
+result = processor.extract("invoice.pdf", Invoice)
 # result.data     → Invoice instance
 # result.metadata → citation bounding boxes per field
 ```
@@ -148,7 +149,7 @@ The library ships with an OpenAI implementation. Phase 2 adds first-class suppor
 
 **Google Gemini** — Uses the Gemini API (or Vertex AI). Same JSON-in-prompt approach as Anthropic.
 
-All providers implement the same two methods: `generate_text` (used by extractors) and `generate_structured_output` (available for direct use). Swapping providers requires only changing which LLM class is instantiated — the rest of the pipeline is unaffected.
+All providers implement a single `generate()` method (with optional `images` parameter for vision input). Swapping providers requires only changing which LLM class is instantiated — the rest of the pipeline is unaffected.
 
 ---
 
@@ -162,7 +163,7 @@ Many real-world documents are scanned images embedded in PDF containers. pdfplum
 2. **OCR per region:** Each detected region is sent to a user-supplied OCR engine (implementing `BaseOCREngine`) to extract its text and character-level bounding boxes. Regions within a page are processed in parallel to minimize latency.
 3. **Assembly:** The OCR results are assembled into the standard `PDF → Page → Line` schema. From this point forward, the scanned PDF goes through the same formatter and extractor as a digital PDF.
 
-**Naming:** The digital parser remains `DigitalPDFParser`. The new OCR-based parser is `ScannedPDFParser`. Both produce `PDFDocument` objects; a `DocumentProcessor.from_scanned_pdf()` factory creates the appropriate pipeline.
+**Naming:** Both digital and scanned parsing are handled by a single `PDFParser` class, selected via `ParseStrategy.DIGITAL` or `ParseStrategy.SCANNED`. Both strategies produce `PDFDocument` objects; `PDFProcessor` accepts a `strategy` parameter to wire the appropriate pipeline.
 
 **Async concurrency** within the OCR step (regions per page, pages per document) is controlled by a configuration block so teams can tune it to their hardware.
 

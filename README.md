@@ -42,32 +42,26 @@ Set up your API key (example with OpenAI):
 echo "OPENAI_API_KEY=your-api-key-here" > .env
 ```
 
-Here's a simple example to extract structured data from a PDF:
+Configure a `PDFProcessor` once, then pass the document and schema per call:
 
 ```python
-from dotenv import load_dotenv
+from doc_intelligence import PDFExtractionMode, PDFProcessor
 from pydantic import BaseModel
 
-from doc_intelligence import PDFProcessor
-
-# Load environment variables
-load_dotenv()
-
-# Define your data model
 class License(BaseModel):
     license_name: str
 
-# Create a processor and extract in two lines
-processor = PDFProcessor(provider="openai")
-result = processor.extract(
-    uri="https://example-files.online-convert.com/document/pdf/example.pdf",
-    response_format=License,
-    include_citations=True,
-    extraction_mode="single_pass",
+processor = PDFProcessor(
+    provider="openai",
     model="gpt-4o-mini",
+    include_citations=True,
+    extraction_mode=PDFExtractionMode.SINGLE_PASS,
 )
 
-# Access the extracted data and citations
+result = processor.extract(
+    "https://example-files.online-convert.com/document/pdf/example.pdf",
+    License,
+)
 print(f"Extracted data: {result.data}")
 print(f"Metadata: {result.metadata}")
 ```
@@ -99,19 +93,18 @@ result.metadata
 
 ## Scanned PDFs
 
-For image-only PDFs, add `document_type="scanned"`:
+For image-only PDFs, use `strategy=ParseStrategy.SCANNED` and supply your own layout detector and OCR engine:
 
 ```python
-processor = PDFProcessor(provider="openai", document_type="scanned")
+from doc_intelligence import PDFProcessor, ParseStrategy
+
+processor = PDFProcessor(
+    provider="openai",
+    strategy=ParseStrategy.SCANNED,
+    layout_detector=my_layout_detector,
+    ocr_engine=my_ocr_engine,
+)
 result = processor.extract("scanned_invoice.pdf", Invoice)
-```
-
-Or use the one-liner:
-
-```python
-from doc_intelligence import extract
-
-result = extract("scanned.pdf", Invoice, provider="openai", document_type="scanned")
 ```
 
 See the [Scanned PDFs guide](https://zeel-04.github.io/doc-intelligence/scanned-pdfs/) and

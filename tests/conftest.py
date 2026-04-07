@@ -8,11 +8,12 @@ from pydantic import BaseModel, Field
 
 from doc_intelligence.base import BaseExtractor, BaseFormatter, BaseLLM, BaseParser
 from doc_intelligence.ocr.base import BaseLayoutDetector, BaseOCREngine, LayoutRegion
-from doc_intelligence.pdf.schemas import PDF, PDFDocument
+from doc_intelligence.pdf.schemas import PDF, PDFDocument, PDFExtractionRequest
 from doc_intelligence.pdf.types import PDFExtractionMode
 from doc_intelligence.schemas.core import (
     BoundingBox,
     Document,
+    ExtractionRequest,
     ExtractionResult,
     Line,
     Page,
@@ -72,10 +73,11 @@ class FakeLLM(BaseLLM):
         self.last_call_kwargs: dict[str, Any] = {}
         self.all_calls: list[dict[str, Any]] = []
 
-    def generate_text(
+    def generate(
         self,
         system_prompt: str,
         user_prompt: str,
+        images: list[str] | None = None,
         **kwargs,
     ) -> str:
         call_kwargs = {
@@ -83,6 +85,8 @@ class FakeLLM(BaseLLM):
             "user_prompt": user_prompt,
             **kwargs,
         }
+        if images is not None:
+            call_kwargs["images"] = images
         self.last_call_kwargs = call_kwargs
         self.all_calls.append(call_kwargs)
         if self.responses is not None and self._call_index < len(self.responses):
@@ -98,12 +102,14 @@ class FakeParser(BaseParser[PDFDocument]):
     def __init__(self, result: PDFDocument | None = None):
         self.result = result
         self.call_count = 0
+        self.last_uri: str | None = None
 
-    def parse(self, document: PDFDocument) -> PDFDocument:
+    def parse(self, uri: str) -> PDFDocument:
         self.call_count += 1
+        self.last_uri = uri
         if self.result is not None:
             return self.result
-        return document
+        return PDFDocument(uri=uri)
 
 
 class FakeFormatter(BaseFormatter):
@@ -126,10 +132,8 @@ class FakeExtractor(BaseExtractor):
     def extract(
         self,
         document: Document,
-        llm_config: dict[str, Any],
-        extraction_config: dict[str, Any],
+        request: ExtractionRequest,
         formatter: BaseFormatter,
-        response_format: type[PydanticModel],
     ) -> ExtractionResult:
         return self.result  # type: ignore[return-value]
 
@@ -225,23 +229,10 @@ def sample_pdf_empty() -> PDF:
 # ---------------------------------------------------------------------------
 @pytest.fixture
 def sample_pdf_document(sample_pdf: PDF) -> PDFDocument:
-    """A parsed PDFDocument with citations enabled, single-pass mode."""
+    """A parsed PDFDocument."""
     return PDFDocument(
         uri="tests/fixtures/sample.pdf",
         content=sample_pdf,
-        include_citations=True,
-        extraction_mode=PDFExtractionMode.SINGLE_PASS,
-    )
-
-
-@pytest.fixture
-def sample_pdf_document_no_citations(sample_pdf: PDF) -> PDFDocument:
-    """A parsed PDFDocument with citations disabled."""
-    return PDFDocument(
-        uri="tests/fixtures/sample.pdf",
-        content=sample_pdf,
-        include_citations=False,
-        extraction_mode=PDFExtractionMode.SINGLE_PASS,
     )
 
 
@@ -249,6 +240,20 @@ def sample_pdf_document_no_citations(sample_pdf: PDF) -> PDFDocument:
 def sample_pdf_document_unparsed() -> PDFDocument:
     """A PDFDocument that has not been parsed yet (content=None)."""
     return PDFDocument(uri="tests/fixtures/sample.pdf")
+
+
+# ---------------------------------------------------------------------------
+# Extraction requests
+# ---------------------------------------------------------------------------
+@pytest.fixture
+def sample_extraction_request() -> PDFExtractionRequest:
+    """A default PDF extraction request with citations enabled."""
+    return PDFExtractionRequest(
+        uri="tests/fixtures/sample.pdf",
+        response_format=SimpleExtraction,
+        include_citations=True,
+        extraction_mode=PDFExtractionMode.SINGLE_PASS,
+    )
 
 
 # ---------------------------------------------------------------------------

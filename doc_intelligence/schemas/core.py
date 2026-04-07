@@ -1,6 +1,5 @@
 """Core schemas shared across all document types."""
 
-from enum import Enum
 from typing import Annotated, Any, Literal, TypeVar
 
 from pydantic import BaseModel, ConfigDict, Field
@@ -106,10 +105,29 @@ class BaseCitation(BaseModel):
 # Generic Document schema
 # -------------------------------------
 class Document(BaseModel):
+    """Base document — holds only identity and parsed content."""
+
     uri: str
     content: BaseModel | None = None
+
+
+# -------------------------------------
+# Extraction request
+# -------------------------------------
+class ExtractionRequest(BaseModel):
+    """Base extraction request — carries caller intent, not document state.
+
+    Attributes:
+        uri: Path or URL of the document to process.
+        response_format: Pydantic model class describing the expected schema.
+        include_citations: Whether to include citation metadata.
+        llm_config: Additional LLM configuration forwarded per-call.
+    """
+
+    uri: str
+    response_format: type[BaseModel]
     include_citations: bool = True
-    extraction_mode: Enum
+    llm_config: dict[str, Any] | None = None
 
 
 # -------------------------------------
@@ -125,10 +143,3 @@ class ExtractionResult(BaseModel):
 
     data: Any
     metadata: dict[str, Any] | None = None
-
-
-# -------------------------------------
-# Extraction config
-# -------------------------------------
-class ExtractionConfig(BaseModel):
-    include_citations: bool
