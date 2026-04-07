@@ -10,7 +10,6 @@ class TestPublicAPI:
     _expected = [
         "PDFProcessor",
         "DocumentProcessor",
-        "extract",
         "create_llm",
         "BaseLLM",
         "OpenAILLM",
@@ -19,7 +18,9 @@ class TestPublicAPI:
         "GeminiLLM",
         "PDFDocument",
         "PDFExtractionMode",
-        "PDFExtractionConfig",
+        "PDFExtractionRequest",
+        "PDFParser",
+        "ParseStrategy",
         "ExtractionResult",
         "BoundingBox",
         "BaseCitation",

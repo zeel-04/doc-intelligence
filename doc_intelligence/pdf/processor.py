@@ -1,3 +1,5 @@
+"""Document processing pipeline and PDF convenience wrapper."""
+
 from typing import Any
 
 from loguru import logger
@@ -10,26 +12,33 @@ from doc_intelligence.base import (
 )
 from doc_intelligence.config import settings
 from doc_intelligence.llm import BaseLLM, create_llm
-from doc_intelligence.pdf.extractor import DigitalPDFExtractor
-from doc_intelligence.pdf.formatter import DigitalPDFFormatter
-from doc_intelligence.pdf.parser import DigitalPDFParser
-from doc_intelligence.pdf.schemas import PDFDocument, PDFExtractionConfig
-from doc_intelligence.pdf.types import PDFExtractionMode
+from doc_intelligence.ocr.base import BaseLayoutDetector, BaseOCREngine
+from doc_intelligence.pdf.extractor import PDFExtractor
+from doc_intelligence.pdf.formatter import PDFFormatter
+from doc_intelligence.pdf.parser import PDFParser
+from doc_intelligence.pdf.schemas import PDFExtractionRequest
+from doc_intelligence.pdf.types import (
+    ParseStrategy,
+    PDFExtractionMode,
+    ScannedPipelineType,
+)
 from doc_intelligence.restrictions import (
     check_page_count,
     check_pdf_size,
     check_schema_depth,
 )
-from doc_intelligence.schemas.core import ExtractionResult, PydanticModel
+from doc_intelligence.schemas.core import (
+    ExtractionRequest,
+    ExtractionResult,
+    PydanticModel,
+)
 
 
 class DocumentProcessor:
-    """Reusable document processing pipeline.
+    """Generic document processing pipeline.
 
-    The processor is decoupled from any specific document — components
-    (parser, formatter, extractor) are set at creation time, while the
-    document URI and extraction options are provided per-call via
-    :meth:`extract`.
+    Orchestrates parse → extract for any document type.  Knows nothing
+    about PDFs — component wiring happens at construction time.
 
     Args:
         parser: Parses raw documents into structured content.
@@ -39,7 +48,7 @@ class DocumentProcessor:
 
     def __init__(
         self,
-        parser: BaseParser[PDFDocument],
+        parser: BaseParser,
         formatter: BaseFormatter,
         extractor: BaseExtractor,
     ):
@@ -47,110 +56,20 @@ class DocumentProcessor:
         self.formatter = formatter
         self.extractor = extractor
 
-    @classmethod
-    def from_digital_pdf(cls, llm: BaseLLM, **kwargs: Any) -> "DocumentProcessor":
-        """Create a processor pre-configured for digital PDF extraction.
-
-        Args:
-            llm: The LLM backend to use for extraction.
-            **kwargs: Additional arguments forwarded to the constructor.
-
-        Returns:
-            A configured :class:`DocumentProcessor` instance.
-        """
-        return cls(
-            parser=DigitalPDFParser(),
-            formatter=DigitalPDFFormatter(),
-            extractor=DigitalPDFExtractor(llm),
-            **kwargs,
-        )
-
-    def _parse(self, document: PDFDocument) -> PDFDocument:
-        """Parse the document if it has no content yet.
-
-        Args:
-            document: The document to parse.
-
-        Returns:
-            The same document with ``content`` populated.
-        """
-        document.content = self.parser.parse(document).content
-        logger.info("Document parsed successfully")
-        return document
-
-    def extract(
-        self,
-        uri: str,
-        response_format: type[PydanticModel],
-        *,
-        include_citations: bool = True,
-        extraction_mode: str = "single_pass",
-        page_numbers: list[int] | None = None,
-        llm_config: dict[str, Any] | None = None,
-    ) -> ExtractionResult:
+    def extract(self, request: ExtractionRequest) -> ExtractionResult:
         """Extract structured data from a document.
 
-        A fresh :class:`PDFDocument` is created for each call, so the
-        processor can be reused across multiple files.
-
         Args:
-            uri: Path or URL of the PDF to process.
-            response_format: Pydantic model class describing the
-                expected extraction schema.
-            include_citations: Whether to include citation metadata
-                in the result.
-            extraction_mode: ``"single_pass"`` or ``"multi_pass"``.
-            page_numbers: Optional list of 0-indexed page numbers to
-                restrict extraction to.
-            llm_config: Additional LLM configuration (e.g.
-                ``{"model": "gpt-4o", "temperature": 0.2}``).
+            request: An :class:`ExtractionRequest` (or subclass) carrying
+                the document URI, response schema, and extraction options.
 
         Returns:
             An :class:`ExtractionResult` with ``.data`` and
             ``.metadata`` attributes.
-
-        Raises:
-            ValueError: If the response format is not a Pydantic model,
-                or if size/page/depth limits are exceeded.
         """
-        if not issubclass(response_format, BaseModel):
-            raise ValueError("Response format must be a Pydantic model")
-
-        # Build a fresh document for this call
-        mode = PDFExtractionMode(extraction_mode)
-        document = PDFDocument(
-            uri=uri,
-            include_citations=include_citations,
-            extraction_mode=mode,
-            page_numbers=page_numbers,
-        )
-
-        # Restriction checks — before any expensive work
-        check_pdf_size(document.uri, settings.max_pdf_size_mb)
-        check_schema_depth(response_format, settings.max_schema_depth)
-
-        # Build extraction config
-        extraction_config = PDFExtractionConfig(
-            include_citations=include_citations,
-            extraction_mode=mode,
-            page_numbers=page_numbers,
-        ).model_dump()
-
-        # Auto-parse if not done
-        if not document.content:
-            self._parse(document)
-
-        # Page count check — requires parsed content
-        if document.content and hasattr(document.content, "pages"):
-            check_page_count(len(document.content.pages), settings.max_pdf_pages)
-
-        return self.extractor.extract(
-            document=document,
-            llm_config=llm_config or {},
-            extraction_config=extraction_config,
-            formatter=self.formatter,
-            response_format=response_format,
-        )
+        document = self.parser.parse(request.uri)
+        logger.info("Document parsed successfully")
+        return self.extractor.extract(document, request, self.formatter)
 
 
 class PDFProcessor:
@@ -161,25 +80,47 @@ class PDFProcessor:
     sharing a client) or ``provider`` + ``model`` strings (for quick
     setup via the factory).
 
+    All pipeline-level settings are fixed at construction time.
+    :meth:`extract` accepts only the document URI, the extraction
+    schema, and an optional page filter — nothing else.  If you need
+    different pipeline settings, create a separate processor.
+
     Args:
         llm: A pre-built :class:`BaseLLM` instance.
         provider: LLM provider name (e.g. ``"openai"``, ``"anthropic"``).
             Used with :func:`create_llm` when ``llm`` is not provided.
         model: Model name for the provider. If *None*, the provider's
             default is used.
-        **llm_kwargs: Additional keyword arguments forwarded to
-            :func:`create_llm` (e.g. ``api_key``, ``host``).
+        strategy: ``DIGITAL`` (default) or ``SCANNED``. Selects the
+            parsing path inside :class:`PDFParser`.
+        scanned_pipeline: ``VLM`` (default) or ``TWO_STAGE`` (not yet
+            implemented). Selects the scanned sub-pipeline. Only used
+            when ``strategy`` is ``SCANNED``.
+        include_citations: Whether to include citation metadata in
+            extraction results (default ``True``).
+        extraction_mode: ``SINGLE_PASS`` (default) or ``MULTI_PASS``.
+        llm_config: Generation parameters forwarded to the LLM on
+            every call (e.g. ``{"temperature": 0.2}``).
+        layout_detector: A :class:`BaseLayoutDetector` implementation.
+            Required when ``scanned_pipeline`` is ``TWO_STAGE``.
+        ocr_engine: A :class:`BaseOCREngine` implementation.
+            Required when ``scanned_pipeline`` is ``TWO_STAGE``.
+        dpi: Page rendering resolution for scanned PDFs (default 150).
+        vlm_batch_size: Pages per VLM call (default 1). Only used when
+            ``scanned_pipeline`` is ``VLM``.
 
     Raises:
         ValueError: If neither ``llm`` nor ``provider`` is specified.
 
     Examples:
-        >>> processor = PDFProcessor(provider="openai", model="gpt-4o")
-        >>> result = processor.extract("invoice.pdf", InvoiceSchema)
-
-        >>> llm = OpenAILLM(model="gpt-4o")
-        >>> processor = PDFProcessor(llm=llm)
-        >>> result = processor.extract("invoice.pdf", InvoiceSchema)
+        >>> processor = PDFProcessor(
+        ...     provider="openai",
+        ...     model="gpt-4o",
+        ...     extraction_mode=PDFExtractionMode.MULTI_PASS,
+        ... )
+        >>> r1 = processor.extract("jan.pdf", Invoice)
+        >>> r2 = processor.extract("feb.pdf", Invoice)
+        >>> r3 = processor.extract("receipt.pdf", Receipt)
     """
 
     def __init__(
@@ -188,53 +129,80 @@ class PDFProcessor:
         *,
         provider: str | None = None,
         model: str | None = None,
-        **llm_kwargs: Any,
+        strategy: ParseStrategy = ParseStrategy.DIGITAL,
+        scanned_pipeline: ScannedPipelineType = ScannedPipelineType.VLM,
+        include_citations: bool = True,
+        extraction_mode: PDFExtractionMode = PDFExtractionMode.SINGLE_PASS,
+        llm_config: dict[str, Any] | None = None,
+        layout_detector: BaseLayoutDetector | None = None,
+        ocr_engine: BaseOCREngine | None = None,
+        dpi: int = 150,
+        vlm_batch_size: int = 1,
     ):
         if llm is not None:
             self._llm = llm
         elif provider is not None:
-            self._llm = create_llm(provider, model, **llm_kwargs)
+            self._llm = create_llm(provider, model)
         else:
             raise ValueError("Either `llm` or `provider` must be specified")
-        self._processor = DocumentProcessor.from_digital_pdf(llm=self._llm)
+
+        self._include_citations = include_citations
+        self._extraction_mode = extraction_mode
+        self._llm_config = llm_config
+
+        self._processor = DocumentProcessor(
+            parser=PDFParser(
+                strategy=strategy,
+                scanned_pipeline=scanned_pipeline,
+                layout_detector=layout_detector,
+                ocr_engine=ocr_engine,
+                llm=self._llm if scanned_pipeline == ScannedPipelineType.VLM else None,
+                dpi=dpi,
+                vlm_batch_size=vlm_batch_size,
+            ),
+            formatter=PDFFormatter(),
+            extractor=PDFExtractor(self._llm),
+        )
 
     def extract(
         self,
         uri: str,
         response_format: type[PydanticModel],
         *,
-        model: str | None = None,
-        include_citations: bool = True,
-        extraction_mode: str = "single_pass",
         page_numbers: list[int] | None = None,
-        llm_config: dict[str, Any] | None = None,
     ) -> ExtractionResult:
         """Extract structured data from a PDF.
 
         Args:
             uri: Path or URL of the PDF to process.
-            response_format: Pydantic model class describing the
-                expected extraction schema.
-            model: Optional per-call model override (transient — does
-                not mutate the processor's default model).
-            include_citations: Whether to include citation metadata.
-            extraction_mode: ``"single_pass"`` or ``"multi_pass"``.
-            page_numbers: Optional page restriction (0-indexed).
-            llm_config: Additional LLM config dict. If ``model`` is
-                also provided, it takes precedence.
+            response_format: Pydantic model class describing the expected
+                extraction schema.
+            page_numbers: Optional page restriction (0-indexed). Defaults
+                to all pages.
 
         Returns:
             An :class:`ExtractionResult` with ``.data`` and
             ``.metadata`` attributes.
+
+        Raises:
+            ValueError: If the response format is not a Pydantic model,
+                or if size/page/depth limits are exceeded.
         """
-        effective_llm_config = dict(llm_config or {})
-        if model is not None:
-            effective_llm_config["model"] = model
-        return self._processor.extract(
+        if not issubclass(response_format, BaseModel):
+            raise ValueError("response_format must be a Pydantic model")
+
+        # Restriction checks — before any expensive work
+        check_pdf_size(uri, settings.max_pdf_size_mb)
+        check_page_count(uri, settings.max_pdf_pages)
+        check_schema_depth(response_format, settings.max_schema_depth)
+
+        request = PDFExtractionRequest(
             uri=uri,
             response_format=response_format,
-            include_citations=include_citations,
-            extraction_mode=extraction_mode,
+            include_citations=self._include_citations,
+            extraction_mode=self._extraction_mode,
             page_numbers=page_numbers,
-            llm_config=effective_llm_config if effective_llm_config else None,
+            llm_config=self._llm_config,
         )
+
+        return self._processor.extract(request)

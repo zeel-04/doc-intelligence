@@ -10,9 +10,10 @@ A library for parsing, formatting, and processing documents that can be used to 
 
 - Extract structured data from PDF documents using LLMs
 - Automatic citation tracking with page numbers, line numbers, and bounding boxes
-- Support for digital PDFs (local files and URLs)
+- Support for digital PDFs and scanned (image-only) PDFs via OCR
 - Type-safe data models using Pydantic
 - Multi-provider LLM support: OpenAI, Anthropic, Gemini, Ollama
+- Pluggable OCR pipeline — swap in any layout detector or OCR engine
 
 ## Installation
 
@@ -41,32 +42,26 @@ Set up your API key (example with OpenAI):
 echo "OPENAI_API_KEY=your-api-key-here" > .env
 ```
 
-Here's a simple example to extract structured data from a PDF:
+Configure a `PDFProcessor` once, then pass the document and schema per call:
 
 ```python
-from dotenv import load_dotenv
+from doc_intelligence import PDFExtractionMode, PDFProcessor
 from pydantic import BaseModel
 
-from doc_intelligence import PDFProcessor
-
-# Load environment variables
-load_dotenv()
-
-# Define your data model
 class License(BaseModel):
     license_name: str
 
-# Create a processor and extract in two lines
-processor = PDFProcessor(provider="openai")
-result = processor.extract(
-    uri="https://example-files.online-convert.com/document/pdf/example.pdf",
-    response_format=License,
-    include_citations=True,
-    extraction_mode="single_pass",
+processor = PDFProcessor(
+    provider="openai",
     model="gpt-4o-mini",
+    include_citations=True,
+    extraction_mode=PDFExtractionMode.SINGLE_PASS,
 )
 
-# Access the extracted data and citations
+result = processor.extract(
+    "https://example-files.online-convert.com/document/pdf/example.pdf",
+    License,
+)
 print(f"Extracted data: {result.data}")
 print(f"Metadata: {result.metadata}")
 ```
@@ -95,6 +90,25 @@ result.metadata
 #     }
 # }
 ```
+
+## Scanned PDFs
+
+For image-only PDFs, use `strategy=ParseStrategy.SCANNED` and supply your own layout detector and OCR engine:
+
+```python
+from doc_intelligence import PDFProcessor, ParseStrategy
+
+processor = PDFProcessor(
+    provider="openai",
+    strategy=ParseStrategy.SCANNED,
+    layout_detector=my_layout_detector,
+    ocr_engine=my_ocr_engine,
+)
+result = processor.extract("scanned_invoice.pdf", Invoice)
+```
+
+See the [Scanned PDFs guide](https://zeel-04.github.io/doc-intelligence/scanned-pdfs/) and
+[Custom OCR Components](https://zeel-04.github.io/doc-intelligence/custom-ocr/) docs for details.
 
 ## Documentation
 

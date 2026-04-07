@@ -1,3 +1,4 @@
+import base64
 from typing import Any
 
 from google import genai
@@ -16,18 +17,33 @@ class OpenAILLM(BaseLLM):
         self.client = OpenAI()
 
     @retry(stop=stop_after_attempt(3))
-    def generate_text(
+    def generate(
         self,
         system_prompt: str,
         user_prompt: str,
+        images: list[str] | None = None,
         **kwargs,
     ) -> str:
         model = kwargs.pop("model", self.model)
-        logger.debug(f"OpenAILLM: generate_text: Generating text with model: {model}")
+        if images:
+            logger.debug(f"OpenAILLM: generate: {len(images)} image(s), model={model}")
+            content: list[dict[str, Any]] = [
+                {"type": "input_text", "text": user_prompt}
+            ]
+            for image_url in images:
+                content.append(
+                    {"type": "input_image", "image_url": image_url, "detail": "high"}
+                )
+            input_payload: str | list[dict[str, Any]] = [
+                {"role": "user", "content": content}
+            ]
+        else:
+            logger.debug(f"OpenAILLM: generate: model={model}")
+            input_payload = user_prompt
         response = self.client.responses.create(
             model=model,
             instructions=system_prompt,
-            input=user_prompt,
+            input=input_payload,
             **kwargs,
         )
         return response.output_text
@@ -48,10 +64,11 @@ class OllamaLLM(BaseLLM):
         self.client = ollama.Client(host=host)
 
     @retry(stop=stop_after_attempt(3))
-    def generate_text(
+    def generate(
         self,
         system_prompt: str,
         user_prompt: str,
+        images: list[str] | None = None,
         **kwargs: Any,
     ) -> str:
         """Generate text using the native Ollama chat API.
@@ -59,6 +76,7 @@ class OllamaLLM(BaseLLM):
         Args:
             system_prompt: The system instruction for the LLM.
             user_prompt: The user message to send.
+            images: Optional base64-encoded data URLs (``data:image/png;base64,...``).
             **kwargs: Additional arguments forwarded to ``client.chat()``
                 (e.g. ``think=False``, ``options={"temperature": 0.7}``).
 
@@ -70,12 +88,24 @@ class OllamaLLM(BaseLLM):
         """
         model = kwargs.pop("model", self.model)
         kwargs.pop("stream", None)
-        logger.debug(f"OllamaLLM: generate_text: Generating text with model: {model}")
+        user_msg: dict[str, Any] = {"role": "user", "content": user_prompt}
+        if images:
+            logger.debug(f"OllamaLLM: generate: {len(images)} image(s), model={model}")
+            # Ollama expects raw base64 strings (no data URL prefix) in the images field
+            raw_images: list[str] = []
+            for data_url in images:
+                if "," in data_url:
+                    raw_images.append(data_url.split(",", 1)[1])
+                else:
+                    raw_images.append(data_url)
+            user_msg["images"] = raw_images
+        else:
+            logger.debug(f"OllamaLLM: generate: model={model}")
         response = self.client.chat(
             model=model,
             messages=[
                 {"role": "system", "content": system_prompt},
-                {"role": "user", "content": user_prompt},
+                user_msg,
             ],
             stream=False,
             **kwargs,
@@ -96,21 +126,42 @@ class AnthropicLLM(BaseLLM):
         self.client = anthropic.Anthropic(api_key=api_key)
 
     @retry(stop=stop_after_attempt(3))
-    def generate_text(
+    def generate(
         self,
         system_prompt: str,
         user_prompt: str,
+        images: list[str] | None = None,
         **kwargs: Any,
     ) -> str:
         model = kwargs.pop("model", self.model)
         max_tokens = kwargs.pop("max_tokens", 4096)
-        logger.debug(
-            f"AnthropicLLM: generate_text: Generating text with model: {model}"
-        )
+        if images:
+            logger.debug(
+                f"AnthropicLLM: generate: {len(images)} image(s), model={model}"
+            )
+            msg_content: str | list[dict[str, Any]] = [
+                {"type": "text", "text": user_prompt}
+            ]
+            for data_url in images:
+                header, b64_data = data_url.split(",", 1)
+                mime_type = header.split(":")[1].split(";")[0]
+                msg_content.append(
+                    {
+                        "type": "image",
+                        "source": {
+                            "type": "base64",
+                            "media_type": mime_type,
+                            "data": b64_data,
+                        },
+                    }
+                )
+        else:
+            logger.debug(f"AnthropicLLM: generate: model={model}")
+            msg_content = user_prompt
         response = self.client.messages.create(
             model=model,
             system=system_prompt,
-            messages=[{"role": "user", "content": user_prompt}],
+            messages=[{"role": "user", "content": msg_content}],
             max_tokens=max_tokens,
             **kwargs,
         )
@@ -125,17 +176,38 @@ class GeminiLLM(BaseLLM):
         self.client = genai.Client(api_key=api_key)
 
     @retry(stop=stop_after_attempt(3))
-    def generate_text(
+    def generate(
         self,
         system_prompt: str,
         user_prompt: str,
+        images: list[str] | None = None,
         **kwargs: Any,
     ) -> str:
         model = kwargs.pop("model", self.model)
-        logger.debug(f"GeminiLLM: generate_text: Generating text with model: {model}")
+        if images:
+            logger.debug(f"GeminiLLM: generate: {len(images)} image(s), model={model}")
+            parts: list[genai_types.Part] = [genai_types.Part(text=user_prompt)]
+            for data_url in images:
+                header, b64_data = data_url.split(",", 1)
+                mime_type = header.split(":")[1].split(";")[0]
+                image_bytes = base64.b64decode(b64_data)
+                parts.append(
+                    genai_types.Part(
+                        inline_data=genai_types.Blob(
+                            mime_type=mime_type,
+                            data=image_bytes,
+                        )
+                    )
+                )
+            contents: str | list[genai_types.Content] = [
+                genai_types.Content(role="user", parts=parts)
+            ]
+        else:
+            logger.debug(f"GeminiLLM: generate: model={model}")
+            contents = user_prompt
         response = self.client.models.generate_content(
             model=model,
-            contents=user_prompt,
+            contents=contents,
             config=genai_types.GenerateContentConfig(
                 system_instruction=system_prompt,
                 **kwargs,

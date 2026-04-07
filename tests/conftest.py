@@ -2,23 +2,57 @@
 
 from typing import Any
 
+import numpy as np
 import pytest
 from pydantic import BaseModel, Field
 
 from doc_intelligence.base import BaseExtractor, BaseFormatter, BaseLLM, BaseParser
-from doc_intelligence.pdf.schemas import PDF, Line, Page, PDFDocument
+from doc_intelligence.ocr.base import BaseLayoutDetector, BaseOCREngine, LayoutRegion
+from doc_intelligence.pdf.schemas import PDF, PDFDocument, PDFExtractionRequest
 from doc_intelligence.pdf.types import PDFExtractionMode
 from doc_intelligence.schemas.core import (
     BoundingBox,
     Document,
+    ExtractionRequest,
     ExtractionResult,
+    Line,
+    Page,
     PydanticModel,
+    TextBlock,
 )
 
 
 # ---------------------------------------------------------------------------
 # Fake ABC implementations
 # ---------------------------------------------------------------------------
+class FakeLayoutDetector(BaseLayoutDetector):
+    """A fake layout detector that returns a pre-set list of regions."""
+
+    def __init__(self, regions: list[LayoutRegion] | None = None):
+        self.regions = regions or []
+        self.call_count = 0
+        self.last_image: np.ndarray | None = None
+
+    def detect(self, page_image: np.ndarray) -> list[LayoutRegion]:
+        self.call_count += 1
+        self.last_image = page_image
+        return self.regions
+
+
+class FakeOCREngine(BaseOCREngine):
+    """A fake OCR engine that returns a pre-set list of lines."""
+
+    def __init__(self, lines: list[Line] | None = None):
+        self.lines = lines or []
+        self.call_count = 0
+        self.last_image: np.ndarray | None = None
+
+    def ocr(self, region_image: np.ndarray) -> list[Line]:
+        self.call_count += 1
+        self.last_image = region_image
+        return self.lines
+
+
 class FakeLLM(BaseLLM):
     """A fake LLM that returns canned text responses without making API calls.
 
@@ -39,10 +73,11 @@ class FakeLLM(BaseLLM):
         self.last_call_kwargs: dict[str, Any] = {}
         self.all_calls: list[dict[str, Any]] = []
 
-    def generate_text(
+    def generate(
         self,
         system_prompt: str,
         user_prompt: str,
+        images: list[str] | None = None,
         **kwargs,
     ) -> str:
         call_kwargs = {
@@ -50,6 +85,8 @@ class FakeLLM(BaseLLM):
             "user_prompt": user_prompt,
             **kwargs,
         }
+        if images is not None:
+            call_kwargs["images"] = images
         self.last_call_kwargs = call_kwargs
         self.all_calls.append(call_kwargs)
         if self.responses is not None and self._call_index < len(self.responses):
@@ -65,12 +102,14 @@ class FakeParser(BaseParser[PDFDocument]):
     def __init__(self, result: PDFDocument | None = None):
         self.result = result
         self.call_count = 0
+        self.last_uri: str | None = None
 
-    def parse(self, document: PDFDocument) -> PDFDocument:
+    def parse(self, uri: str) -> PDFDocument:
         self.call_count += 1
+        self.last_uri = uri
         if self.result is not None:
             return self.result
-        return document
+        return PDFDocument(uri=uri)
 
 
 class FakeFormatter(BaseFormatter):
@@ -93,10 +132,8 @@ class FakeExtractor(BaseExtractor):
     def extract(
         self,
         document: Document,
-        llm_config: dict[str, Any],
-        extraction_config: dict[str, Any],
+        request: ExtractionRequest,
         formatter: BaseFormatter,
-        response_format: type[PydanticModel],
     ) -> ExtractionResult:
         return self.result  # type: ignore[return-value]
 
@@ -152,14 +189,21 @@ def sample_lines(sample_bbox: BoundingBox) -> list[Line]:
 
 @pytest.fixture
 def sample_page(sample_lines: list[Line]) -> Page:
-    """A single page with 3 lines, 500x800 dimensions."""
-    return Page(lines=sample_lines, width=500, height=800)
+    """A single page with 3 TextBlocks (one per line), 500x800 dimensions."""
+    return Page(
+        blocks=[
+            TextBlock(lines=[line], bounding_box=line.bounding_box)
+            for line in sample_lines
+        ],
+        width=500,
+        height=800,
+    )
 
 
 @pytest.fixture
 def sample_page_empty() -> Page:
-    """A page with no lines."""
-    return Page(lines=[], width=500, height=800)
+    """A page with no blocks."""
+    return Page(blocks=[], width=500, height=800)
 
 
 @pytest.fixture
@@ -185,23 +229,10 @@ def sample_pdf_empty() -> PDF:
 # ---------------------------------------------------------------------------
 @pytest.fixture
 def sample_pdf_document(sample_pdf: PDF) -> PDFDocument:
-    """A parsed PDFDocument with citations enabled, single-pass mode."""
+    """A parsed PDFDocument."""
     return PDFDocument(
         uri="tests/fixtures/sample.pdf",
         content=sample_pdf,
-        include_citations=True,
-        extraction_mode=PDFExtractionMode.SINGLE_PASS,
-    )
-
-
-@pytest.fixture
-def sample_pdf_document_no_citations(sample_pdf: PDF) -> PDFDocument:
-    """A parsed PDFDocument with citations disabled."""
-    return PDFDocument(
-        uri="tests/fixtures/sample.pdf",
-        content=sample_pdf,
-        include_citations=False,
-        extraction_mode=PDFExtractionMode.SINGLE_PASS,
     )
 
 
@@ -209,6 +240,20 @@ def sample_pdf_document_no_citations(sample_pdf: PDF) -> PDFDocument:
 def sample_pdf_document_unparsed() -> PDFDocument:
     """A PDFDocument that has not been parsed yet (content=None)."""
     return PDFDocument(uri="tests/fixtures/sample.pdf")
+
+
+# ---------------------------------------------------------------------------
+# Extraction requests
+# ---------------------------------------------------------------------------
+@pytest.fixture
+def sample_extraction_request() -> PDFExtractionRequest:
+    """A default PDF extraction request with citations enabled."""
+    return PDFExtractionRequest(
+        uri="tests/fixtures/sample.pdf",
+        response_format=SimpleExtraction,
+        include_citations=True,
+        extraction_mode=PDFExtractionMode.SINGLE_PASS,
+    )
 
 
 # ---------------------------------------------------------------------------
@@ -251,6 +296,25 @@ def nested_extraction_model() -> type[NestedExtraction]:
 
 
 # ---------------------------------------------------------------------------
+# OCR fakes
+# ---------------------------------------------------------------------------
+@pytest.fixture
+def sample_layout_region(sample_bbox: BoundingBox) -> LayoutRegion:
+    """A single text layout region with 90% confidence."""
+    return LayoutRegion(bounding_box=sample_bbox, region_type="text", confidence=0.9)
+
+
+@pytest.fixture
+def fake_layout_detector(sample_layout_region: LayoutRegion) -> FakeLayoutDetector:
+    return FakeLayoutDetector(regions=[sample_layout_region])
+
+
+@pytest.fixture
+def fake_ocr_engine(sample_lines: list[Line]) -> FakeOCREngine:
+    return FakeOCREngine(lines=sample_lines)
+
+
+# ---------------------------------------------------------------------------
 # Citation response dicts (for utils tests)
 # ---------------------------------------------------------------------------
 @pytest.fixture
@@ -259,7 +323,7 @@ def citation_response_simple() -> dict[str, Any]:
     return {
         "name": {
             "value": "Alice",
-            "citations": [{"page": 0, "lines": [0, 1]}],
+            "citations": [{"page": 0, "blocks": [0, 1]}],
         },
     }
 
@@ -271,11 +335,11 @@ def citation_response_nested() -> dict[str, Any]:
         "person": {
             "name": {
                 "value": "Bob",
-                "citations": [{"page": 0, "lines": [2]}],
+                "citations": [{"page": 0, "blocks": [2]}],
             },
             "age": {
                 "value": 30,
-                "citations": [{"page": 1, "lines": [0]}],
+                "citations": [{"page": 1, "blocks": [0]}],
             },
         },
     }
@@ -286,7 +350,7 @@ def citation_response_with_list() -> dict[str, Any]:
     """A response with a list of citation-wrapped items."""
     return {
         "ids": [
-            {"value": 101, "citations": [{"page": 0, "lines": [0]}]},
-            {"value": 205, "citations": [{"page": 0, "lines": [1]}]},
+            {"value": 101, "citations": [{"page": 0, "blocks": [0]}]},
+            {"value": 205, "citations": [{"page": 0, "blocks": [1]}]},
         ],
     }

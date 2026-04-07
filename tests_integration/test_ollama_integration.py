@@ -28,7 +28,7 @@ class TestOllamaLLMIntegration:
     """Smoke-test OllamaLLM against every locally available model."""
 
     @pytest.mark.parametrize("model_name", get_ollama_model_ids())
-    def test_generate_text_returns_valid_response(
+    def test_generate_returns_valid_response(
         self,
         require_ollama_server: list[str],
         standard_prompts: tuple[str, str],
@@ -44,7 +44,7 @@ class TestOllamaLLMIntegration:
         if _is_thinking_model(model_name):
             kwargs["think"] = False
 
-        response = llm.generate_text(
+        response = llm.generate(
             system_prompt=system_prompt,
             user_prompt=user_prompt,
             **kwargs,
@@ -68,7 +68,7 @@ class TestOllamaLLMIntegration:
         if _is_thinking_model(model_name):
             kwargs["think"] = False
 
-        response = llm.generate_text(
+        response = llm.generate(
             system_prompt=system_prompt,
             user_prompt=user_prompt,
             **kwargs,

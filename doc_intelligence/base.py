@@ -3,14 +3,18 @@ from typing import Any, Generic, TypeVar
 
 from langchain_core.output_parsers import JsonOutputParser
 
-from doc_intelligence.schemas.core import Document, ExtractionResult, PydanticModel
+from doc_intelligence.schemas.core import (
+    Document,
+    ExtractionRequest,
+    ExtractionResult,
+)
 
 TDocument = TypeVar("TDocument", bound=Document)
 
 
 class BaseParser(ABC, Generic[TDocument]):
     @abstractmethod
-    def parse(self, document: TDocument) -> TDocument:
+    def parse(self, uri: str) -> TDocument:
         pass
 
 
@@ -29,36 +33,25 @@ class BaseLLM(ABC):
         self.model = model
 
     @abstractmethod
-    def generate_text(
+    def generate(
         self,
         system_prompt: str,
         user_prompt: str,
+        images: list[str] | None = None,
         **kwargs,
     ) -> str:
-        pass
-
-    def generate_structured_output(
-        self,
-        system_prompt: str,
-        user_prompt: str,
-        response_format: type[PydanticModel],
-        **kwargs,
-    ) -> PydanticModel | None:
-        """Generate a structured Pydantic model response.
+        """Generate text from a prompt, optionally including images.
 
         Args:
             system_prompt: The system prompt.
             user_prompt: The user prompt.
-            response_format: The Pydantic model class to parse the response into.
+            images: Optional base64-encoded data URLs (``data:image/png;base64,...``).
             **kwargs: Additional provider-specific arguments.
 
-        Raises:
-            NotImplementedError: If the provider does not support structured output natively.
+        Returns:
+            The text content of the model's reply.
         """
-        raise NotImplementedError(
-            f"{type(self).__name__} does not support structured output. "
-            "Use generate_text with a JSON schema prompt instead."
-        )
+        pass
 
 
 class BaseExtractor(ABC):
@@ -73,9 +66,7 @@ class BaseExtractor(ABC):
     def extract(
         self,
         document: Document,
-        llm_config: dict[str, Any],
-        extraction_config: dict[str, Any],
+        request: ExtractionRequest,
         formatter: BaseFormatter,
-        response_format: type[PydanticModel],
     ) -> ExtractionResult:
         pass

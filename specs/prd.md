@@ -1,8 +1,8 @@
 # Product Requirements Document — doc_intelligence
 
-**Version:** 0.1.5
+**Version:** 0.3.6
 **Status:** Living document
-**Last updated:** 2026-03-13
+**Last updated:** 2026-04-06
 
 ---
 
@@ -32,7 +32,7 @@ Developers need a library that:
 - Provide a clean, composable Python API for document extraction that follows SOLID principles.
 - Support multiple document formats (starting with PDFs, digital and scanned).
 - Support multiple LLM providers through a single consistent interface.
-- Deliver extraction results with optional, fine-grained source citations (page → line → bounding box).
+- Deliver extraction results with optional, fine-grained source citations (page → block → bounding box).
 - Be configurable enough for production use (limits, async, batching) without being over-engineered for simple cases.
 - Remain framework-agnostic — no FastAPI, no Django, no mandatory cloud service.
 
@@ -68,32 +68,33 @@ The library parses text-based (digital/native) PDFs and extracts structured data
 **How it works for the developer:**
 
 ```python
-from doc_intelligence.pdf.processor import DocumentProcessor
-from doc_intelligence.llm import OpenAILLM
 from pydantic import BaseModel
+
+from doc_intelligence import PDFProcessor
 
 class Invoice(BaseModel):
     vendor: str
     total: float
     date: str
 
-processor = DocumentProcessor.from_digital_pdf(llm=OpenAILLM())
-result = processor.extract(
-    uri="invoice.pdf",
-    response_format=Invoice,
+# Pipeline config set once on the constructor
+processor = PDFProcessor(
+    provider="openai",
+    model="gpt-4o-mini",
     include_citations=True,
-    llm_config={"model": "gpt-4o-mini"},
 )
+# Per-call: document and schema
+result = processor.extract("invoice.pdf", Invoice)
 # result.data     → Invoice instance
 # result.metadata → citation bounding boxes per field
 ```
 
 **What happens under the hood:**
 
-1. The PDF is parsed page by page; each line is extracted with its bounding box, normalized to a 0–1 coordinate scale.
-2. The document is formatted as a structured text prompt for the LLM.
-3. The LLM returns JSON matching the output schema (with optional citation wrappers if citations are enabled).
-4. Citations are enriched with bounding boxes from the parser output.
+1. The PDF is parsed page by page; each text line becomes its own content block with a bounding box, normalized to a 0–1 coordinate scale.
+2. The document is formatted as block-aware markup for the LLM (each block tagged with an index and type).
+3. The LLM returns JSON matching the output schema (with optional block-level citation wrappers if citations are enabled).
+4. Citations are enriched with bounding boxes by resolving block indices from the parser output.
 5. The result is returned as a typed Pydantic instance plus raw citation metadata.
 
 **Extraction modes:**
@@ -103,7 +104,7 @@ result = processor.extract(
 
 ---
 
-### 5.2 Multi-pass Extraction (Phase 1)
+### 5.2 Multi-pass Extraction ✅ (Complete)
 
 Single-pass extraction asks the LLM to do two things at once: understand the document and locate the source. For complex documents, this degrades accuracy. Multi-pass splits the job into three focused steps.
 
@@ -113,14 +114,14 @@ The LLM receives the full document text and returns a clean Pydantic model insta
 **Pass 2 — Page grounding:**
 The LLM receives the Pass 1 answer (as context) plus the full document and returns a mapping of field paths to the page numbers where the data appears. This step is intentionally coarse — pages are cheap to locate.
 
-**Pass 3 — Line and bbox grounding:**
-The library reduces the document to only the pages identified in Pass 2 and sends that smaller context to the LLM, asking for specific line numbers. Bounding boxes are resolved deterministically from the parser output, not by the LLM.
+**Pass 3 — Block and bbox grounding:**
+The library reduces the document to only the pages identified in Pass 2 and sends that smaller context to the LLM, asking for specific block indices. Bounding boxes are resolved deterministically from the parser output, not by the LLM.
 
 **Intermediate results** are stored on the document object so callers can inspect or cache partial results if the pipeline is interrupted.
 
 ---
 
-### 5.3 Extraction Limits and Restrictions (Phase 1)
+### 5.3 Extraction Limits and Restrictions ✅ (Complete)
 
 The library enforces configurable hard limits to prevent runaway usage and to make extraction predictable in production.
 
@@ -136,19 +137,19 @@ Limits are defined in a central configuration file (`config.py`) so they can be 
 
 ---
 
-### 5.4 Multiple LLM Providers (Phase 2)
+### 5.4 Multiple LLM Providers ✅ (Complete)
 
 The library ships with an OpenAI implementation. Phase 2 adds first-class support for three additional providers, all sharing the same interface.
 
 **OpenAI** (existing) — Uses the Responses API with native structured output support.
 
-**Ollama** — Connects to a locally-running Ollama server via its OpenAI-compatible `/v1` endpoint. No code changes are needed beyond pointing to a different base URL. Any model that Ollama supports (Llama, Mistral, Qwen, etc.) works without provider-specific code.
+**Ollama** — Connects to a locally-running Ollama server via the native Ollama Python SDK (`ollama.Client`). The native SDK is used instead of the OpenAI-compatible `/v1` endpoint because it correctly supports Ollama-specific parameters (e.g., `think=False`) that the `/v1` endpoint silently ignores. Any model that Ollama supports (Llama, Mistral, Qwen, etc.) works without provider-specific code.
 
 **Anthropic (Claude)** — Uses Anthropic's Messages API. Structured output is achieved by including the JSON schema in the prompt and parsing the response, since Claude does not have a native structured-output API identical to OpenAI's. Retries on malformed JSON are handled automatically.
 
 **Google Gemini** — Uses the Gemini API (or Vertex AI). Same JSON-in-prompt approach as Anthropic.
 
-All providers implement the same two methods: `generate_text` (used by extractors) and `generate_structured_output` (available for direct use). Swapping providers requires only changing which LLM class is instantiated — the rest of the pipeline is unaffected.
+All providers implement a single `generate()` method (with optional `images` parameter for vision input). Swapping providers requires only changing which LLM class is instantiated — the rest of the pipeline is unaffected.
 
 ---
 
@@ -158,11 +159,11 @@ Many real-world documents are scanned images embedded in PDF containers. pdfplum
 
 **The OCR pipeline has three steps:**
 
-1. **Layout detection:** A layout model (PaddleOCR's layout model by default) runs on each page image and identifies distinct regions — paragraphs, tables, headers, figures. The library is designed so the layout model can be swapped without changing the rest of the pipeline.
-2. **OCR per region:** Each detected region is sent to an OCR engine (PaddleOCR by default, also swappable) to extract its text and character-level bounding boxes. Regions within a page are processed in parallel to minimize latency.
+1. **Layout detection:** A user-supplied layout detector (implementing `BaseLayoutDetector`) runs on each page image and identifies distinct regions — paragraphs, tables, headers, figures. The library is designed so any layout model can be plugged in without changing the rest of the pipeline.
+2. **OCR per region:** Each detected region is sent to a user-supplied OCR engine (implementing `BaseOCREngine`) to extract its text and character-level bounding boxes. Regions within a page are processed in parallel to minimize latency.
 3. **Assembly:** The OCR results are assembled into the standard `PDF → Page → Line` schema. From this point forward, the scanned PDF goes through the same formatter and extractor as a digital PDF.
 
-**Naming:** The digital parser remains `DigitalPDFParser`. The new OCR-based parser is `ScannedPDFParser`. Both produce `PDFDocument` objects; a `DocumentProcessor.from_scanned_pdf()` factory creates the appropriate pipeline.
+**Naming:** Both digital and scanned parsing are handled by a single `PDFParser` class, selected via `ParseStrategy.DIGITAL` or `ParseStrategy.SCANNED`. Both strategies produce `PDFDocument` objects; `PDFProcessor` accepts a `strategy` parameter to wire the appropriate pipeline.
 
 **Async concurrency** within the OCR step (regions per page, pages per document) is controlled by a configuration block so teams can tune it to their hardware.
 

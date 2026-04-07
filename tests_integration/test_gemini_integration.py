@@ -14,14 +14,14 @@ from tests_integration.conftest import assert_valid_response
 class TestGeminiLLMIntegration:
     """Smoke-test GeminiLLM against the live Google Gemini API."""
 
-    def test_generate_text_returns_valid_response(
+    def test_generate_returns_valid_response(
         self,
         require_gemini_key: None,
         standard_prompts: tuple[str, str],
     ) -> None:
         llm = GeminiLLM()
         system_prompt, user_prompt = standard_prompts
-        response = llm.generate_text(
+        response = llm.generate(
             system_prompt=system_prompt,
             user_prompt=user_prompt,
             model="gemini-2.0-flash",
@@ -35,7 +35,7 @@ class TestGeminiLLMIntegration:
     ) -> None:
         llm = GeminiLLM()
         system_prompt, user_prompt = standard_prompts
-        response = llm.generate_text(
+        response = llm.generate(
             system_prompt=system_prompt,
             user_prompt=user_prompt,
             model="gemini-2.0-flash",
