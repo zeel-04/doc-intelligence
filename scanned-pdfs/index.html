@@ -10,13 +10,13 @@
       
       
       
-        <link rel="canonical" href="https://zeel-04.github.io/doc-intelligence/quickstart/">
+        <link rel="canonical" href="https://zeel-04.github.io/doc-intelligence/scanned-pdfs/">
       
       
-        <link rel="prev" href="..">
+        <link rel="prev" href="../quickstart/">
       
       
-        <link rel="next" href="../scanned-pdfs/">
+        <link rel="next" href="../custom-ocr/">
       
       
         
@@ -27,7 +27,7 @@
     
     
       
-        <title>Quick Start - Document AI</title>
+        <title>Scanned PDFs - Document AI</title>
       
     
     
@@ -78,7 +78,7 @@
     <div data-md-component="skip">
       
         
-        <a href="#quickstart" class="md-skip">
+        <a href="#scanned-pdf-extraction" class="md-skip">
           Skip to content
         </a>
       
@@ -112,7 +112,7 @@
         <div class="md-header__topic" data-md-component="header-topic">
           <span class="md-ellipsis">
             
-              Quick Start
+              Scanned PDFs
             
           </span>
         </div>
@@ -242,11 +242,9 @@
   
   
   
-    
   
-  
-    <li class="md-tabs__item md-tabs__item--active">
-      <a href="./" class="md-tabs__link">
+    <li class="md-tabs__item">
+      <a href="../quickstart/" class="md-tabs__link">
         
   
   
@@ -263,9 +261,11 @@
   
   
   
+    
   
-    <li class="md-tabs__item">
-      <a href="../scanned-pdfs/" class="md-tabs__link">
+  
+    <li class="md-tabs__item md-tabs__item--active">
+      <a href="./" class="md-tabs__link">
         
   
   
@@ -373,6 +373,33 @@
       
   
   
+  
+  
+    <li class="md-nav__item">
+      <a href="../quickstart/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Quick Start
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
     
   
   
@@ -392,7 +419,7 @@
   <span class="md-ellipsis">
     
   
-    Quick Start
+    Scanned PDFs
   
 
     
@@ -410,7 +437,7 @@
   <span class="md-ellipsis">
     
   
-    Quick Start
+    Scanned PDFs
   
 
     
@@ -436,33 +463,44 @@
     <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
       
         <li class="md-nav__item">
-  <a href="#installation" class="md-nav__link">
+  <a href="#vlm-pipeline-recommended" class="md-nav__link">
     <span class="md-ellipsis">
       
-        Installation
+        VLM Pipeline (recommended)
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="VLM Pipeline (recommended)">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#pdfprocessor" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        PDFProcessor
       
     </span>
   </a>
   
 </li>
-      
-        <li class="md-nav__item">
-  <a href="#requirements" class="md-nav__link">
+        
+          <li class="md-nav__item">
+  <a href="#documentprocessor-full-control" class="md-nav__link">
     <span class="md-ellipsis">
       
-        Requirements
+        DocumentProcessor (full control)
       
     </span>
   </a>
   
-    <nav class="md-nav" aria-label="Requirements">
-      <ul class="md-nav__list">
+</li>
         
           <li class="md-nav__item">
-  <a href="#install-with-uv" class="md-nav__link">
+  <a href="#batch-size" class="md-nav__link">
     <span class="md-ellipsis">
       
-        Install with uv
+        Batch size
       
     </span>
   </a>
@@ -475,10 +513,10 @@
 </li>
       
         <li class="md-nav__item">
-  <a href="#environment-setup" class="md-nav__link">
+  <a href="#two-stage-pipeline-not-yet-implemented" class="md-nav__link">
     <span class="md-ellipsis">
       
-        Environment Setup
+        Two-Stage Pipeline (not yet implemented)
       
     </span>
   </a>
@@ -486,22 +524,50 @@
 </li>
       
         <li class="md-nav__item">
-  <a href="#basic-usage" class="md-nav__link">
+  <a href="#options" class="md-nav__link">
     <span class="md-ellipsis">
       
-        Basic Usage
+        Options
       
     </span>
   </a>
   
-    <nav class="md-nav" aria-label="Basic Usage">
+    <nav class="md-nav" aria-label="Options">
       <ul class="md-nav__list">
         
           <li class="md-nav__item">
-  <a href="#sample-output" class="md-nav__link">
+  <a href="#dpi" class="md-nav__link">
     <span class="md-ellipsis">
       
-        Sample Output
+        DPI
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#how-it-works" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        How It Works
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="How It Works">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#vlm-pipeline-type-2" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        VLM Pipeline (Type 2)
       
     </span>
   </a>
@@ -509,10 +575,10 @@
 </li>
         
           <li class="md-nav__item">
-  <a href="#configuration-reference" class="md-nav__link">
+  <a href="#two-stage-pipeline-type-1-planned" class="md-nav__link">
     <span class="md-ellipsis">
       
-        Configuration Reference
+        Two-Stage Pipeline (Type 1) — planned
       
     </span>
   </a>
@@ -528,33 +594,6 @@
   
 </nav>
       
-    </li>
-  
-
-    
-      
-      
-  
-  
-  
-  
-    <li class="md-nav__item">
-      <a href="../scanned-pdfs/" class="md-nav__link">
-        
-  
-  
-  <span class="md-ellipsis">
-    
-  
-    Scanned PDFs
-  
-
-    
-  </span>
-  
-  
-
-      </a>
     </li>
   
 
@@ -613,33 +652,44 @@
     <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
       
         <li class="md-nav__item">
-  <a href="#installation" class="md-nav__link">
+  <a href="#vlm-pipeline-recommended" class="md-nav__link">
     <span class="md-ellipsis">
       
-        Installation
+        VLM Pipeline (recommended)
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="VLM Pipeline (recommended)">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#pdfprocessor" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        PDFProcessor
       
     </span>
   </a>
   
 </li>
-      
-        <li class="md-nav__item">
-  <a href="#requirements" class="md-nav__link">
+        
+          <li class="md-nav__item">
+  <a href="#documentprocessor-full-control" class="md-nav__link">
     <span class="md-ellipsis">
       
-        Requirements
+        DocumentProcessor (full control)
       
     </span>
   </a>
   
-    <nav class="md-nav" aria-label="Requirements">
-      <ul class="md-nav__list">
+</li>
         
           <li class="md-nav__item">
-  <a href="#install-with-uv" class="md-nav__link">
+  <a href="#batch-size" class="md-nav__link">
     <span class="md-ellipsis">
       
-        Install with uv
+        Batch size
       
     </span>
   </a>
@@ -652,10 +702,10 @@
 </li>
       
         <li class="md-nav__item">
-  <a href="#environment-setup" class="md-nav__link">
+  <a href="#two-stage-pipeline-not-yet-implemented" class="md-nav__link">
     <span class="md-ellipsis">
       
-        Environment Setup
+        Two-Stage Pipeline (not yet implemented)
       
     </span>
   </a>
@@ -663,22 +713,50 @@
 </li>
       
         <li class="md-nav__item">
-  <a href="#basic-usage" class="md-nav__link">
+  <a href="#options" class="md-nav__link">
     <span class="md-ellipsis">
       
-        Basic Usage
+        Options
       
     </span>
   </a>
   
-    <nav class="md-nav" aria-label="Basic Usage">
+    <nav class="md-nav" aria-label="Options">
       <ul class="md-nav__list">
         
           <li class="md-nav__item">
-  <a href="#sample-output" class="md-nav__link">
+  <a href="#dpi" class="md-nav__link">
     <span class="md-ellipsis">
       
-        Sample Output
+        DPI
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#how-it-works" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        How It Works
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="How It Works">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#vlm-pipeline-type-2" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        VLM Pipeline (Type 2)
       
     </span>
   </a>
@@ -686,10 +764,10 @@
 </li>
         
           <li class="md-nav__item">
-  <a href="#configuration-reference" class="md-nav__link">
+  <a href="#two-stage-pipeline-type-1-planned" class="md-nav__link">
     <span class="md-ellipsis">
       
-        Configuration Reference
+        Two-Stage Pipeline (Type 1) — planned
       
     </span>
   </a>
@@ -721,153 +799,96 @@
   
 
 
-<h1 id="quickstart">Quickstart</h1>
-<p>This guide will help you get started with Document AI.</p>
-<h2 id="installation">Installation</h2>
-<h2 id="requirements">Requirements</h2>
-<ul>
-<li>Python &gt;= 3.10</li>
-<li>An API key for your chosen LLM provider (OpenAI, Anthropic, or Gemini) — or a local Ollama server</li>
-</ul>
-<h3 id="install-with-uv">Install with uv</h3>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a>uv<span class="w"> </span>pip<span class="w"> </span>install<span class="w"> </span>doc-intelligence
+<h1 id="scanned-pdf-extraction">Scanned PDF Extraction</h1>
+<p>Document AI supports scanned (image-only) PDFs through two pipeline types that
+produce the same structured output as the digital pipeline. The existing formatter
+and extractor work unchanged — only the parser differs.</p>
+<h2 id="vlm-pipeline-recommended">VLM Pipeline (recommended)</h2>
+<p>The VLM pipeline sends page images to a vision-capable LLM that performs layout
+detection and OCR in a single call. No additional models or components needed —
+it reuses the same LLM used for extraction.</p>
+<h3 id="pdfprocessor">PDFProcessor</h3>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a><span class="kn">from</span><span class="w"> </span><span class="nn">doc_intelligence</span><span class="w"> </span><span class="kn">import</span> <span class="n">PDFProcessor</span><span class="p">,</span> <span class="n">ParseStrategy</span><span class="p">,</span> <span class="n">ScannedPipelineType</span>
+<a id="__codelineno-0-2" name="__codelineno-0-2" href="#__codelineno-0-2"></a>
+<a id="__codelineno-0-3" name="__codelineno-0-3" href="#__codelineno-0-3"></a><span class="n">processor</span> <span class="o">=</span> <span class="n">PDFProcessor</span><span class="p">(</span>
+<a id="__codelineno-0-4" name="__codelineno-0-4" href="#__codelineno-0-4"></a>    <span class="n">provider</span><span class="o">=</span><span class="s2">&quot;openai&quot;</span><span class="p">,</span>
+<a id="__codelineno-0-5" name="__codelineno-0-5" href="#__codelineno-0-5"></a>    <span class="n">strategy</span><span class="o">=</span><span class="n">ParseStrategy</span><span class="o">.</span><span class="n">SCANNED</span><span class="p">,</span>
+<a id="__codelineno-0-6" name="__codelineno-0-6" href="#__codelineno-0-6"></a><span class="p">)</span>
+<a id="__codelineno-0-7" name="__codelineno-0-7" href="#__codelineno-0-7"></a>
+<a id="__codelineno-0-8" name="__codelineno-0-8" href="#__codelineno-0-8"></a><span class="n">result</span> <span class="o">=</span> <span class="n">processor</span><span class="o">.</span><span class="n">extract</span><span class="p">(</span><span class="s2">&quot;scanned_invoice.pdf&quot;</span><span class="p">,</span> <span class="n">Invoice</span><span class="p">)</span>
 </code></pre></div>
-<p>Or with pip:</p>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-1-1" name="__codelineno-1-1" href="#__codelineno-1-1"></a>pip<span class="w"> </span>install<span class="w"> </span>doc-intelligence
+<h3 id="documentprocessor-full-control">DocumentProcessor (full control)</h3>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-1-1" name="__codelineno-1-1" href="#__codelineno-1-1"></a><span class="kn">from</span><span class="w"> </span><span class="nn">doc_intelligence</span><span class="w"> </span><span class="kn">import</span> <span class="n">DocumentProcessor</span>
+<a id="__codelineno-1-2" name="__codelineno-1-2" href="#__codelineno-1-2"></a><span class="kn">from</span><span class="w"> </span><span class="nn">doc_intelligence.pdf.parser</span><span class="w"> </span><span class="kn">import</span> <span class="n">PDFParser</span>
+<a id="__codelineno-1-3" name="__codelineno-1-3" href="#__codelineno-1-3"></a><span class="kn">from</span><span class="w"> </span><span class="nn">doc_intelligence.pdf.formatter</span><span class="w"> </span><span class="kn">import</span> <span class="n">PDFFormatter</span>
+<a id="__codelineno-1-4" name="__codelineno-1-4" href="#__codelineno-1-4"></a><span class="kn">from</span><span class="w"> </span><span class="nn">doc_intelligence.pdf.extractor</span><span class="w"> </span><span class="kn">import</span> <span class="n">PDFExtractor</span>
+<a id="__codelineno-1-5" name="__codelineno-1-5" href="#__codelineno-1-5"></a><span class="kn">from</span><span class="w"> </span><span class="nn">doc_intelligence.pdf.types</span><span class="w"> </span><span class="kn">import</span> <span class="n">ParseStrategy</span><span class="p">,</span> <span class="n">ScannedPipelineType</span>
+<a id="__codelineno-1-6" name="__codelineno-1-6" href="#__codelineno-1-6"></a><span class="kn">from</span><span class="w"> </span><span class="nn">doc_intelligence.llm</span><span class="w"> </span><span class="kn">import</span> <span class="n">OpenAILLM</span>
+<a id="__codelineno-1-7" name="__codelineno-1-7" href="#__codelineno-1-7"></a>
+<a id="__codelineno-1-8" name="__codelineno-1-8" href="#__codelineno-1-8"></a><span class="n">llm</span> <span class="o">=</span> <span class="n">OpenAILLM</span><span class="p">(</span><span class="n">model</span><span class="o">=</span><span class="s2">&quot;gpt-4o&quot;</span><span class="p">)</span>
+<a id="__codelineno-1-9" name="__codelineno-1-9" href="#__codelineno-1-9"></a><span class="n">processor</span> <span class="o">=</span> <span class="n">DocumentProcessor</span><span class="p">(</span>
+<a id="__codelineno-1-10" name="__codelineno-1-10" href="#__codelineno-1-10"></a>    <span class="n">parser</span><span class="o">=</span><span class="n">PDFParser</span><span class="p">(</span>
+<a id="__codelineno-1-11" name="__codelineno-1-11" href="#__codelineno-1-11"></a>        <span class="n">strategy</span><span class="o">=</span><span class="n">ParseStrategy</span><span class="o">.</span><span class="n">SCANNED</span><span class="p">,</span>
+<a id="__codelineno-1-12" name="__codelineno-1-12" href="#__codelineno-1-12"></a>        <span class="n">scanned_pipeline</span><span class="o">=</span><span class="n">ScannedPipelineType</span><span class="o">.</span><span class="n">VLM</span><span class="p">,</span>
+<a id="__codelineno-1-13" name="__codelineno-1-13" href="#__codelineno-1-13"></a>        <span class="n">llm</span><span class="o">=</span><span class="n">llm</span><span class="p">,</span>
+<a id="__codelineno-1-14" name="__codelineno-1-14" href="#__codelineno-1-14"></a>    <span class="p">),</span>
+<a id="__codelineno-1-15" name="__codelineno-1-15" href="#__codelineno-1-15"></a>    <span class="n">formatter</span><span class="o">=</span><span class="n">PDFFormatter</span><span class="p">(),</span>
+<a id="__codelineno-1-16" name="__codelineno-1-16" href="#__codelineno-1-16"></a>    <span class="n">extractor</span><span class="o">=</span><span class="n">PDFExtractor</span><span class="p">(</span><span class="n">llm</span><span class="p">),</span>
+<a id="__codelineno-1-17" name="__codelineno-1-17" href="#__codelineno-1-17"></a><span class="p">)</span>
+<a id="__codelineno-1-18" name="__codelineno-1-18" href="#__codelineno-1-18"></a>
+<a id="__codelineno-1-19" name="__codelineno-1-19" href="#__codelineno-1-19"></a><span class="n">result</span> <span class="o">=</span> <span class="n">processor</span><span class="o">.</span><span class="n">extract</span><span class="p">(</span><span class="s2">&quot;scanned_invoice.pdf&quot;</span><span class="p">,</span> <span class="n">Invoice</span><span class="p">)</span>
 </code></pre></div>
-<h2 id="environment-setup">Environment Setup</h2>
-<p>Document AI supports multiple LLM providers. Set up your API key for your chosen provider:</p>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-2-1" name="__codelineno-2-1" href="#__codelineno-2-1"></a><span class="c1"># OpenAI</span>
-<a id="__codelineno-2-2" name="__codelineno-2-2" href="#__codelineno-2-2"></a><span class="nb">echo</span><span class="w"> </span><span class="s2">&quot;OPENAI_API_KEY=your-api-key-here&quot;</span><span class="w"> </span>&gt;<span class="w"> </span>.env
-<a id="__codelineno-2-3" name="__codelineno-2-3" href="#__codelineno-2-3"></a>
-<a id="__codelineno-2-4" name="__codelineno-2-4" href="#__codelineno-2-4"></a><span class="c1"># Or Anthropic</span>
-<a id="__codelineno-2-5" name="__codelineno-2-5" href="#__codelineno-2-5"></a><span class="nb">echo</span><span class="w"> </span><span class="s2">&quot;ANTHROPIC_API_KEY=your-api-key-here&quot;</span><span class="w"> </span>&gt;<span class="w"> </span>.env
-<a id="__codelineno-2-6" name="__codelineno-2-6" href="#__codelineno-2-6"></a>
-<a id="__codelineno-2-7" name="__codelineno-2-7" href="#__codelineno-2-7"></a><span class="c1"># Or Gemini</span>
-<a id="__codelineno-2-8" name="__codelineno-2-8" href="#__codelineno-2-8"></a><span class="nb">echo</span><span class="w"> </span><span class="s2">&quot;GOOGLE_API_KEY=your-api-key-here&quot;</span><span class="w"> </span>&gt;<span class="w"> </span>.env
+<h3 id="batch-size">Batch size</h3>
+<p>Control how many pages are sent per VLM call. Higher values reduce the number
+of API calls but increase per-call token usage.</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-2-1" name="__codelineno-2-1" href="#__codelineno-2-1"></a><span class="n">processor</span> <span class="o">=</span> <span class="n">PDFProcessor</span><span class="p">(</span>
+<a id="__codelineno-2-2" name="__codelineno-2-2" href="#__codelineno-2-2"></a>    <span class="n">provider</span><span class="o">=</span><span class="s2">&quot;openai&quot;</span><span class="p">,</span>
+<a id="__codelineno-2-3" name="__codelineno-2-3" href="#__codelineno-2-3"></a>    <span class="n">strategy</span><span class="o">=</span><span class="n">ParseStrategy</span><span class="o">.</span><span class="n">SCANNED</span><span class="p">,</span>
+<a id="__codelineno-2-4" name="__codelineno-2-4" href="#__codelineno-2-4"></a>    <span class="n">scanned_pipeline</span><span class="o">=</span><span class="n">ScannedPipelineType</span><span class="o">.</span><span class="n">VLM</span><span class="p">,</span>
+<a id="__codelineno-2-5" name="__codelineno-2-5" href="#__codelineno-2-5"></a>    <span class="n">vlm_batch_size</span><span class="o">=</span><span class="mi">5</span><span class="p">,</span>  <span class="c1"># 5 pages per call</span>
+<a id="__codelineno-2-6" name="__codelineno-2-6" href="#__codelineno-2-6"></a><span class="p">)</span>
 </code></pre></div>
-<h2 id="basic-usage">Basic Usage</h2>
-<p>Here's a simple example to extract structured data from a PDF document.</p>
-<p>Create a <code>PDFProcessor</code> once with your pipeline configuration. The document and schema are always provided per call:</p>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-3-1" name="__codelineno-3-1" href="#__codelineno-3-1"></a><span class="kn">from</span><span class="w"> </span><span class="nn">dotenv</span><span class="w"> </span><span class="kn">import</span> <span class="n">load_dotenv</span>
-<a id="__codelineno-3-2" name="__codelineno-3-2" href="#__codelineno-3-2"></a><span class="kn">from</span><span class="w"> </span><span class="nn">pydantic</span><span class="w"> </span><span class="kn">import</span> <span class="n">BaseModel</span>
-<a id="__codelineno-3-3" name="__codelineno-3-3" href="#__codelineno-3-3"></a>
-<a id="__codelineno-3-4" name="__codelineno-3-4" href="#__codelineno-3-4"></a><span class="kn">from</span><span class="w"> </span><span class="nn">doc_intelligence</span><span class="w"> </span><span class="kn">import</span> <span class="n">PDFExtractionMode</span><span class="p">,</span> <span class="n">PDFProcessor</span>
-<a id="__codelineno-3-5" name="__codelineno-3-5" href="#__codelineno-3-5"></a>
-<a id="__codelineno-3-6" name="__codelineno-3-6" href="#__codelineno-3-6"></a><span class="n">load_dotenv</span><span class="p">()</span>
-<a id="__codelineno-3-7" name="__codelineno-3-7" href="#__codelineno-3-7"></a>
-<a id="__codelineno-3-8" name="__codelineno-3-8" href="#__codelineno-3-8"></a><span class="k">class</span><span class="w"> </span><span class="nc">License</span><span class="p">(</span><span class="n">BaseModel</span><span class="p">):</span>
-<a id="__codelineno-3-9" name="__codelineno-3-9" href="#__codelineno-3-9"></a>    <span class="n">license_name</span><span class="p">:</span> <span class="nb">str</span>
-<a id="__codelineno-3-10" name="__codelineno-3-10" href="#__codelineno-3-10"></a>
-<a id="__codelineno-3-11" name="__codelineno-3-11" href="#__codelineno-3-11"></a><span class="n">processor</span> <span class="o">=</span> <span class="n">PDFProcessor</span><span class="p">(</span>
-<a id="__codelineno-3-12" name="__codelineno-3-12" href="#__codelineno-3-12"></a>    <span class="n">provider</span><span class="o">=</span><span class="s2">&quot;openai&quot;</span><span class="p">,</span>
-<a id="__codelineno-3-13" name="__codelineno-3-13" href="#__codelineno-3-13"></a>    <span class="n">model</span><span class="o">=</span><span class="s2">&quot;gpt-4o-mini&quot;</span><span class="p">,</span>
-<a id="__codelineno-3-14" name="__codelineno-3-14" href="#__codelineno-3-14"></a>    <span class="n">include_citations</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span>
-<a id="__codelineno-3-15" name="__codelineno-3-15" href="#__codelineno-3-15"></a>    <span class="n">extraction_mode</span><span class="o">=</span><span class="n">PDFExtractionMode</span><span class="o">.</span><span class="n">SINGLE_PASS</span><span class="p">,</span>
-<a id="__codelineno-3-16" name="__codelineno-3-16" href="#__codelineno-3-16"></a>    <span class="n">llm_config</span><span class="o">=</span><span class="p">{</span><span class="s2">&quot;temperature&quot;</span><span class="p">:</span> <span class="mf">0.2</span><span class="p">},</span>
-<a id="__codelineno-3-17" name="__codelineno-3-17" href="#__codelineno-3-17"></a><span class="p">)</span>
-<a id="__codelineno-3-18" name="__codelineno-3-18" href="#__codelineno-3-18"></a>
-<a id="__codelineno-3-19" name="__codelineno-3-19" href="#__codelineno-3-19"></a><span class="n">result</span> <span class="o">=</span> <span class="n">processor</span><span class="o">.</span><span class="n">extract</span><span class="p">(</span>
-<a id="__codelineno-3-20" name="__codelineno-3-20" href="#__codelineno-3-20"></a>    <span class="s2">&quot;https://example-files.online-convert.com/document/pdf/example.pdf&quot;</span><span class="p">,</span>
-<a id="__codelineno-3-21" name="__codelineno-3-21" href="#__codelineno-3-21"></a>    <span class="n">License</span><span class="p">,</span>
-<a id="__codelineno-3-22" name="__codelineno-3-22" href="#__codelineno-3-22"></a><span class="p">)</span>
-<a id="__codelineno-3-23" name="__codelineno-3-23" href="#__codelineno-3-23"></a>
-<a id="__codelineno-3-24" name="__codelineno-3-24" href="#__codelineno-3-24"></a><span class="c1"># Or from a local file:</span>
-<a id="__codelineno-3-25" name="__codelineno-3-25" href="#__codelineno-3-25"></a><span class="c1"># result = processor.extract(&quot;path/to/your/document.pdf&quot;, License)</span>
-<a id="__codelineno-3-26" name="__codelineno-3-26" href="#__codelineno-3-26"></a>
-<a id="__codelineno-3-27" name="__codelineno-3-27" href="#__codelineno-3-27"></a><span class="c1"># Different schema, same processor</span>
-<a id="__codelineno-3-28" name="__codelineno-3-28" href="#__codelineno-3-28"></a><span class="c1"># result = processor.extract(&quot;receipt.pdf&quot;, Receipt, page_numbers=[0])</span>
-<a id="__codelineno-3-29" name="__codelineno-3-29" href="#__codelineno-3-29"></a>
-<a id="__codelineno-3-30" name="__codelineno-3-30" href="#__codelineno-3-30"></a><span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Extracted data: </span><span class="si">{</span><span class="n">result</span><span class="o">.</span><span class="n">data</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
-<a id="__codelineno-3-31" name="__codelineno-3-31" href="#__codelineno-3-31"></a><span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Metadata: </span><span class="si">{</span><span class="n">result</span><span class="o">.</span><span class="n">metadata</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+<h2 id="two-stage-pipeline-not-yet-implemented">Two-Stage Pipeline (not yet implemented)</h2>
+<div class="admonition warning">
+<p class="admonition-title">Warning</p>
+<p>The two-stage pipeline (<code>ScannedPipelineType.TWO_STAGE</code>) is <strong>not yet
+implemented</strong>. Selecting it will raise <code>NotImplementedError</code>. Use the
+VLM pipeline above instead.</p>
+</div>
+<p>The two-stage pipeline will use separate layout detection and OCR models. You
+will supply your own <code>BaseLayoutDetector</code> and <code>BaseOCREngine</code> implementations.
+See the <a href="../custom-ocr/">Custom OCR Components</a> guide for the planned contracts.</p>
+<h2 id="options">Options</h2>
+<h3 id="dpi">DPI</h3>
+<p>Higher DPI improves OCR accuracy on dense documents at the cost of more memory and
+processing time. The default is <code>150</code>.</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-3-1" name="__codelineno-3-1" href="#__codelineno-3-1"></a><span class="n">processor</span> <span class="o">=</span> <span class="n">PDFProcessor</span><span class="p">(</span>
+<a id="__codelineno-3-2" name="__codelineno-3-2" href="#__codelineno-3-2"></a>    <span class="n">provider</span><span class="o">=</span><span class="s2">&quot;openai&quot;</span><span class="p">,</span>
+<a id="__codelineno-3-3" name="__codelineno-3-3" href="#__codelineno-3-3"></a>    <span class="n">strategy</span><span class="o">=</span><span class="n">ParseStrategy</span><span class="o">.</span><span class="n">SCANNED</span><span class="p">,</span>
+<a id="__codelineno-3-4" name="__codelineno-3-4" href="#__codelineno-3-4"></a>    <span class="n">scanned_pipeline</span><span class="o">=</span><span class="n">ScannedPipelineType</span><span class="o">.</span><span class="n">VLM</span><span class="p">,</span>
+<a id="__codelineno-3-5" name="__codelineno-3-5" href="#__codelineno-3-5"></a>    <span class="n">dpi</span><span class="o">=</span><span class="mi">300</span><span class="p">,</span>
+<a id="__codelineno-3-6" name="__codelineno-3-6" href="#__codelineno-3-6"></a><span class="p">)</span>
 </code></pre></div>
-<h3 id="sample-output">Sample Output</h3>
-<p>The <code>extract</code> method returns an <code>ExtractionResult</code> with two attributes:</p>
+<h2 id="how-it-works">How It Works</h2>
+<h3 id="vlm-pipeline-type-2">VLM Pipeline (Type 2)</h3>
 <ol>
-<li><strong><code>.data</code></strong>: The extracted data as a Pydantic model instance</li>
-<li><strong><code>.metadata</code></strong>: Citation information for each field with values and bounding boxes</li>
+<li><strong>Render</strong> — each PDF page is rasterised to a numpy array using <code>pypdfium2</code>.</li>
+<li><strong>Encode</strong> — page images are converted to base64 PNG data URLs.</li>
+<li><strong>VLM call</strong> — pages are batched and sent to a vision-capable LLM with a prompt
+   requesting structured layout + OCR JSON output.</li>
+<li><strong>Parse</strong> — the JSON response is parsed into <code>Page</code> objects with typed
+   <code>ContentBlock</code> items (TextBlock, TableBlock, etc.).</li>
 </ol>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-4-1" name="__codelineno-4-1" href="#__codelineno-4-1"></a><span class="n">result</span><span class="o">.</span><span class="n">data</span>
-<a id="__codelineno-4-2" name="__codelineno-4-2" href="#__codelineno-4-2"></a><span class="c1"># License(license_name=&#39;Attribution-ShareAlike 3.0 Unported&#39;)</span>
-<a id="__codelineno-4-3" name="__codelineno-4-3" href="#__codelineno-4-3"></a>
-<a id="__codelineno-4-4" name="__codelineno-4-4" href="#__codelineno-4-4"></a><span class="n">result</span><span class="o">.</span><span class="n">metadata</span>
-<a id="__codelineno-4-5" name="__codelineno-4-5" href="#__codelineno-4-5"></a><span class="c1"># {</span>
-<a id="__codelineno-4-6" name="__codelineno-4-6" href="#__codelineno-4-6"></a><span class="c1">#     &#39;license_name&#39;: {</span>
-<a id="__codelineno-4-7" name="__codelineno-4-7" href="#__codelineno-4-7"></a><span class="c1">#         &#39;value&#39;: &#39;Attribution-ShareAlike 3.0 Unported&#39;,</span>
-<a id="__codelineno-4-8" name="__codelineno-4-8" href="#__codelineno-4-8"></a><span class="c1">#         &#39;citations&#39;: [{</span>
-<a id="__codelineno-4-9" name="__codelineno-4-9" href="#__codelineno-4-9"></a><span class="c1">#             &#39;page&#39;: 0,</span>
-<a id="__codelineno-4-10" name="__codelineno-4-10" href="#__codelineno-4-10"></a><span class="c1">#             &#39;bboxes&#39;: [{</span>
-<a id="__codelineno-4-11" name="__codelineno-4-11" href="#__codelineno-4-11"></a><span class="c1">#                 &#39;x0&#39;: 0.201,</span>
-<a id="__codelineno-4-12" name="__codelineno-4-12" href="#__codelineno-4-12"></a><span class="c1">#                 &#39;top&#39;: 0.859,</span>
-<a id="__codelineno-4-13" name="__codelineno-4-13" href="#__codelineno-4-13"></a><span class="c1">#                 &#39;x1&#39;: 0.565,</span>
-<a id="__codelineno-4-14" name="__codelineno-4-14" href="#__codelineno-4-14"></a><span class="c1">#                 &#39;bottom&#39;: 0.872</span>
-<a id="__codelineno-4-15" name="__codelineno-4-15" href="#__codelineno-4-15"></a><span class="c1">#             }]</span>
-<a id="__codelineno-4-16" name="__codelineno-4-16" href="#__codelineno-4-16"></a><span class="c1">#         }]</span>
-<a id="__codelineno-4-17" name="__codelineno-4-17" href="#__codelineno-4-17"></a><span class="c1">#     }</span>
-<a id="__codelineno-4-18" name="__codelineno-4-18" href="#__codelineno-4-18"></a><span class="c1"># }</span>
-</code></pre></div>
-<h3 id="configuration-reference">Configuration Reference</h3>
-<p><strong><code>PDFProcessor</code> constructor</strong> — pipeline config, set once:</p>
-<table>
-<thead>
-<tr>
-<th>Parameter</th>
-<th>Description</th>
-<th>Default</th>
-</tr>
-</thead>
-<tbody>
-<tr>
-<td><code>provider</code></td>
-<td>LLM provider (<code>"openai"</code>, <code>"anthropic"</code>, <code>"gemini"</code>, <code>"ollama"</code>)</td>
-<td>required*</td>
-</tr>
-<tr>
-<td><code>model</code></td>
-<td>Model name for the provider</td>
-<td>provider default</td>
-</tr>
-<tr>
-<td><code>include_citations</code></td>
-<td>Include citation bounding boxes in results</td>
-<td><code>True</code></td>
-</tr>
-<tr>
-<td><code>extraction_mode</code></td>
-<td><code>SINGLE_PASS</code> or <code>MULTI_PASS</code></td>
-<td><code>SINGLE_PASS</code></td>
-</tr>
-<tr>
-<td><code>llm_config</code></td>
-<td>Generation parameters (e.g. <code>{"temperature": 0.2}</code>)</td>
-<td><code>None</code></td>
-</tr>
-</tbody>
-</table>
-<p>* Or pass a pre-built <code>llm=</code> instance instead of <code>provider</code>.</p>
-<p><strong><code>processor.extract()</code></strong> — document-specific, vary per call:</p>
-<table>
-<thead>
-<tr>
-<th>Parameter</th>
-<th>Description</th>
-</tr>
-</thead>
-<tbody>
-<tr>
-<td><code>uri</code></td>
-<td>Path or URL of the PDF (required)</td>
-</tr>
-<tr>
-<td><code>response_format</code></td>
-<td>Pydantic model class for the extraction schema (required)</td>
-</tr>
-<tr>
-<td><code>page_numbers</code></td>
-<td>List of 0-indexed page numbers to process (default: all pages)</td>
-</tr>
-</tbody>
-</table>
+<h3 id="two-stage-pipeline-type-1-planned">Two-Stage Pipeline (Type 1) — planned</h3>
+<ol>
+<li><strong>Render</strong> — each PDF page will be rasterised to a numpy array using <code>pypdfium2</code>.</li>
+<li><strong>Layout detection</strong> — your <code>BaseLayoutDetector</code> will segment the page image into
+   typed regions (text, table, figure, …).</li>
+<li><strong>OCR</strong> — your <code>BaseOCREngine</code> will read text from each region concurrently. Text
+   regions become <code>TextBlock</code>s; table regions become <code>TableBlock</code>s.</li>
+</ol>
+<p>The resulting <code>PDFDocument</code> is identical in structure to what the digital strategy of
+<code>PDFParser</code> produces, so citation tracking and multi-pass extraction work without any changes.</p>
 
 
 

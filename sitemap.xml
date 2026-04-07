@@ -2,10 +2,18 @@
 <urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
     <url>
          <loc>https://zeel-04.github.io/doc-intelligence/</loc>
-         <lastmod>2026-03-13</lastmod>
+         <lastmod>2026-04-07</lastmod>
+    </url>
+    <url>
+         <loc>https://zeel-04.github.io/doc-intelligence/custom-ocr/</loc>
+         <lastmod>2026-04-07</lastmod>
     </url>
     <url>
          <loc>https://zeel-04.github.io/doc-intelligence/quickstart/</loc>
-         <lastmod>2026-03-13</lastmod>
+         <lastmod>2026-04-07</lastmod>
+    </url>
+    <url>
+         <loc>https://zeel-04.github.io/doc-intelligence/scanned-pdfs/</loc>
+         <lastmod>2026-04-07</lastmod>
     </url>
 </urlset>
