@@ -58,7 +58,6 @@ processor = PDFProcessor(
     model="gpt-5",
     include_citations=True,
     extraction_mode=PDFExtractionMode.SINGLE_PASS,
-    llm_config={"temperature": 0.2},
 )
 
 result = processor.extract(
